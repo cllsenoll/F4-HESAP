@@ -241,12 +241,12 @@ def smart_read_file(uploaded_file):
     except Exception:
         pass
 
-    for enc in ['utf-8', 'cp1254', 'latin1']:
-        try:
+    for enc': ['utf-8', 'cp1254', 'latin1']:
+    try:
             dfs = pd.read_html(io.BytesIO(file_bytes), encoding=enc)
             if dfs and len(dfs) > 0:
                 return dfs[0]
-        except Exception:
+    except Exception:
             continue
 
     raise Exception("Dosya yapısı çözümlenemedi. Lütfen dosyanın bozuk olmadığını kontrol edin.")
@@ -533,16 +533,16 @@ if st.session_state.active_tab == "HESAP":
             with kasa_input_col2:
                 st.markdown(f"<div style='padding-top: 28px;'><span style='font-size: 13px; color: #F57C00;'>📊 Toplam: <strong>{temp_hesap_toplam:,.2f} ₺</strong></span></div>", unsafe_allow_html=True)
             
-            # Anlık Eksik / Fazla Durum Hesaplama
+            # Anlık Kasa Durumu Hesaplama (Kasa Değeri > Toplam ise FAZLA [Yeşil], Kasa Değeri < Toplam ise EKSİK/AÇIK [Kırmızı])
             GuncelKasa = float(st.session_state.ust_kasa_input if "ust_kasa_input" in st.session_state else st.session_state.kasa_miktari)
-            fark = temp_hesap_toplam - GuncelKasa
+            fark = GuncelKasa - temp_hesap_toplam
             
             if fark > 0:
-                durum_metni = f"🔴 KASA EKSİK: {fark:,.2f} ₺"
-                renk_kodu = "#FF5252"
-            elif fark < 0:
-                durum_metni = f"🟢 KASA FAZLA: {abs(fark):,.2f} ₺"
+                durum_metni = f"🟢 KASA FAZLA: {fark:,.2f} ₺"
                 renk_kodu = "#4CAF50"
+            elif fark < 0:
+                durum_metni = f"🔴 KASA AÇIK (EKSİK): {abs(fark):,.2f} ₺"
+                renk_kodu = "#FF5252"
             else:
                 durum_metni = "✅ KASA TAM (0.00 ₺)"
                 renk_kodu = "#FFFFFF"
@@ -614,7 +614,6 @@ if st.session_state.active_tab == "HESAP":
 
         new_df = pd.DataFrame(updated_rows)
         
-        # Değişiklik algılandığında ekranı anında yenile (Banka veya İşlem değiştiğinde)
         if not new_df.equals(st.session_state.hesap_df):
             st.session_state.hesap_df = new_df
             st.rerun()
@@ -629,11 +628,11 @@ if st.session_state.active_tab == "HESAP":
         col2.metric("🏦 Girilen Kasa", f"{GuncelKasa:,.2f} ₺")
 
         if fark > 0:
-            col3.metric("⚖️ Kasa Durumu", f"{fark:,.2f} ₺", delta="Durum: EKSİK", delta_color="inverse")
+            col3.metric("⚖️ Kasa Durumu", f"{fark:,.2f} ₺", delta="FAZLA", delta_color="normal")
         elif fark < 0:
-            col3.metric("⚖️ Kasa Durumu", f"{abs(fark):,.2f} ₺", delta="Durum: FAZLA", delta_color="normal")
+            col3.metric("⚖️ Kasa Durumu", f"{abs(fark):,.2f} ₺", delta="AÇİK", delta_color="inverse")
         else:
-            col3.metric("⚖️ Kasa Durumu", f"0.00 ₺", delta="Durum: TAM", delta_color="off")
+            col3.metric("⚖️ Kasa Durumu", f"0.00 ₺", delta="TAM", delta_color="off")
         st.markdown("</div>", unsafe_allow_html=True)
     else:
         st.title("📋 Günlük Personel Hesap Takip Paneli")
