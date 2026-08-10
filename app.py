@@ -29,19 +29,19 @@ KULLANICI_ISIM = "Celal ŞENOL"
 KULLANICI_GOREV = "Şube Şefi"
 
 # ==========================================
-# PERSONEL FOTOĞRAF HARİTASI (Avatar URL'leri / Dosya Yolları)
+# GİTHUB PERSONEL FOTOĞRAF HARİTASI
 # ==========================================
-# Dilerseniz buradaki linkleri kendi personellerinizin gerçek fotoğraf bağlantıları veya yerel yollarıyla değiştirebilirsiniz.
-PERSONEL_FOTO_MAP = {
-    "HATİCE KÜBRA IŞIK": "https://api.dicebear.com/7.x/avataaars/svg?seed=Hatice",
-    "ALATTİN CEBECİ": "https://api.dicebear.com/7.x/avataaars/svg?seed=Alattin",
-    "BURCU DÜREN": "https://api.dicebear.com/7.x/avataaars/svg?seed=Burcu",
-    "AHMET BERKAN ÖKSÜZ": "https://api.dicebear.com/7.x/avataaars/svg?seed=Ahmet",
-    "HASAN SAĞLAM": "https://api.dicebear.com/7.x/avataaars/svg?seed=Hasan",
-    "MEHMET KAYMAZ": "https://api.dicebear.com/7.x/avataaars/svg?seed=Mehmet",
-    "SUAT ARI": "https://api.dicebear.com/7.x/avataaars/svg?seed=Suat",
-    "SERGEN GÖRÜROĞLU": "https://api.dicebear.com/7.x/avataaars/svg?seed=Sergen"
-}
+# GitHub raw link yapısı üzerinden depodaki dosyalara erişim sağlanır.
+def get_github_avatar(personel_adi):
+    # Türkçe karakterleri temizleyip küçük harfe ve alt çizgiye çevirerek dosya adıyla eşleştiriyoruz
+    tr_map = {'İ': 'i', 'I': 'i', 'Ş': 's', 'Ğ': 'g', 'Ü': 'u', 'Ö': 'o', 'Ç': 'c', 'I': 'i'}
+    clean_name = personel_adi.upper()
+    for k, v in tr_map.items():
+        clean_name = clean_name.replace(k, v)
+    file_name = clean_name.lower().replace(' ', '_')
+    
+    # GitHub raw bağlantısı (Deponuzdaki dosya uzantısına göre .jpg, .png veya .jpeg olabilir)
+    return f"https://raw.githubusercontent.com/cllsenoll/F4-HESAP/main/{file_name}.jpg"
 
 # ==========================================
 # MÜŞTERİ - PERSONEL EŞLEŞTİRME SÖZLÜĞÜ
@@ -498,11 +498,11 @@ if uploaded_file is not None:
         st.error(f"❌ Dosya Okuma/İşleme Hatası: {e}")
 
 # ==========================================
-# TAB 1: HESAP (FOTOĞRAFLI KONTROL PANELİ)
+# TAB 1: HESAP (GİTHUB FOTOĞRAFLI PANEL)
 # ==========================================
 if st.session_state.active_tab == "HESAP":
     st.title("📋 Günlük Personel Hesap Takip Paneli")
-    st.caption("✍️ Personellerin fotoğraflı kartları üzerinden **Banka/ATM** değerlerini girebilir, hesapları anlık takip edebilirsiniz.")
+    st.caption("✍️ Personel fotoğrafları doğrudan GitHub deponuzdan çekilir. Değerleri anlık güncelleyebilirsiniz.")
 
     account_df = st.session_state.account_df
 
@@ -521,12 +521,11 @@ if st.session_state.active_tab == "HESAP":
             current_banka = float(row["Banka/ATM"])
             current_islem = bool(row["İşlem"])
 
-            # Personel için fotoğraf URL'si bulma (Tanımlı değilse varsayılan avatar)
-            foto_url = PERSONEL_FOTO_MAP.get(p_name, f"https://api.dicebear.com/7.x/avataaars/svg?seed={p_name.replace(' ', '')}")
+            # GitHub depodan fotoğraf URL'sini çekiyoruz
+            foto_url = get_github_avatar(p_name)
 
             bg_style = "background: rgba(46, 125, 50, 0.35); border: 1px solid #2E7D32;" if current_islem else "background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08);"
             
-            # Fotoğraflı başlık yapısı
             st.markdown(f"""
             <div style="{bg_style} border-radius: 12px; padding: 12px 15px; margin-bottom: 10px;">
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
