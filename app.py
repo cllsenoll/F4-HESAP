@@ -500,9 +500,16 @@ if st.session_state.active_tab == "HESAP":
 
     if account_df is not None:
         current_df = st.session_state.hesap_df.copy()
-        toplam_hesap = float(current_df["Hesap"].sum())
+        
+        # Ön hesaplama ile anlık toplam hesap
+        temp_hesap_toplam = 0.0
+        for idx, row in current_df.iterrows():
+            ft_val = float(row["Nakit Ft Tutarı Topl"])
+            odeme_val = float(row["Nakit Ödeme Tutarı Topl"])
+            curr_b = st.session_state.get(f"banka_{idx}", float(row["Banka/ATM"]))
+            temp_hesap_toplam += (ft_val + odeme_val - curr_b)
 
-        # Kasa Değişiklik Geri Çağırma Fonksiyonu
+        # Callback Fonksiyonları
         def update_kasa():
             st.session_state.kasa_miktari = st.session_state.ust_kasa_input
 
@@ -524,11 +531,11 @@ if st.session_state.active_tab == "HESAP":
                     on_change=update_kasa
                 )
             with kasa_input_col2:
-                st.markdown(f"<div style='padding-top: 28px;'><span style='font-size: 13px; color: #F57C00;'>📊 Toplam: <strong>{toplam_hesap:,.2f} ₺</strong></span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='padding-top: 28px;'><span style='font-size: 13px; color: #F57C00;'>📊 Toplam: <strong>{temp_hesap_toplam:,.2f} ₺</strong></span></div>", unsafe_allow_html=True)
             
             # Anlık Eksik / Fazla Durum Hesaplama
             GuncelKasa = float(st.session_state.ust_kasa_input if "ust_kasa_input" in st.session_state else st.session_state.kasa_miktari)
-            fark = toplam_hesap - GuncelKasa
+            fark = temp_hesap_toplam - GuncelKasa
             
             if fark > 0:
                 durum_metni = f"🔴 KASA EKSİK: {fark:,.2f} ₺"
@@ -606,6 +613,8 @@ if st.session_state.active_tab == "HESAP":
             })
 
         new_df = pd.DataFrame(updated_rows)
+        
+        # Değişiklik algılandığında ekranı anında yenile (Banka veya İşlem değiştiğinde)
         if not new_df.equals(st.session_state.hesap_df):
             st.session_state.hesap_df = new_df
             st.rerun()
