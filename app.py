@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import io
 import re
+import urllib.parse
 
 # 1. SAYFA YAPILANDIRMASI
 st.set_page_config(
@@ -29,13 +30,13 @@ KULLANICI_ISIM = "Celal ŞENOL"
 KULLANICI_GOREV = "Şube Şefi"
 
 # ==========================================
-# GİTHUB PERSONEL FOTOĞRAF HARİTASI (Orijinal İsim Uyumlu)
+# GİTHUB PERSONEL FOTOĞRAF HARİTASI (URL Encode Uyumlu)
 # ==========================================
 def get_github_avatar(personel_adi):
-    # Deponuzdaki dosya adları orijinal büyük harf ve Türkçe karakterleriyle eşleşir
-    # Örn: ALATTİN CEBECİ.png, CELAL ŞENOL.png vb.
+    # Orijinal ismi koruyup URL formatına (boşluk ve türkçe karakterler için) güvenle kodluyoruz
     formatted_name = str(personel_adi).strip()
-    return f"https://raw.githubusercontent.com/cllsenoll/F4-HESAP/main/{formatted_name}.png"
+    encoded_name = urllib.parse.quote(formatted_name)
+    return f"https://raw.githubusercontent.com/cllsenoll/F4-HESAP/main/{encoded_name}.png"
 
 # ==========================================
 # MÜŞTERİ - PERSONEL EŞLEŞTİRME SÖZLÜĞÜ
@@ -496,7 +497,7 @@ if uploaded_file is not None:
 # ==========================================
 if st.session_state.active_tab == "HESAP":
     st.title("📋 Günlük Personel Hesap Takip Paneli")
-    st.caption("✍️ Personel fotoğrafları doğrudan GitHub deponuzdan orijinal adlandırma ile çekilir.")
+    st.caption("✍️ Personel fotoğrafları doğrudan GitHub deponuzdan URL kodlanmış şekilde çekilir.")
 
     account_df = st.session_state.account_df
 
