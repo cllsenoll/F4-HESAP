@@ -169,6 +169,13 @@ custom_css = """
         padding: 20px;
         margin-top: 20px;
     }
+    .personel-card {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 12px;
+    }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
@@ -355,7 +362,6 @@ def process_personnel_account_data(df):
                 processed_clean_names.add(c_name)
 
     result_df = pd.DataFrame(final_rows)
-    # Kesin Hesap Formülü: Nakit Ft Tutarı Topl + Nakit Ödeme Tutarı Topl - Banka/ATM
     result_df["Hesap"] = result_df["Nakit Ft Tutarı Topl"] + result_df["Nakit Ödeme Tutarı Topl"] - result_df["Banka/ATM"]
     result_df["İşlem"] = False
 
@@ -484,60 +490,82 @@ if uploaded_file is not None:
         st.error(f"❌ Dosya Okuma/İşleme Hatası: {e}")
 
 # ==========================================
-# TAB 1: HESAP
+# TAB 1: HESAP (ANLIK GÜNCELLENEN KONTROL PANELİ)
 # ==========================================
 if st.session_state.active_tab == "HESAP":
-    st.title("📋 Günlük Personel Hesap Takip Tablosu")
-    st.caption("✍️ Değerleri veya **Banka/ATM** sütununu değiştirdiğinizde **Hesap** alanı anında güncellenir.")
+    st.title("📋 Günlük Personel Hesap Takip Paneli")
+    st.caption("✍️ Her personelin karşısındaki **Banka/ATM** alanına değer yazdığınızda veya **İşlem Tamamlandı** kutucuğunu işaretlediğinizde hesap ve satır rengi **anında** güncellenir.")
 
     account_df = st.session_state.account_df
 
     if account_df is not None:
-        if st.sidebar.button("🔄 Tabloyu Sıfırla"):
+        if st.sidebar.button("🔄 Verileri Sıfırla"):
             st.session_state.hesap_df = account_df.copy()
             st.rerun()
-            
+
         current_df = st.session_state.hesap_df.copy()
 
-        # Hesap kolonunu editor öncesi kesinlikle güncelliyoruz
-        ft_init = pd.to_numeric(current_df["Nakit Ft Tutarı Topl"], errors='coerce').fillna(0.0)
-        odeme_init = pd.to_numeric(current_df["Nakit Ödeme Tutarı Topl"], errors='coerce').fillna(0.0)
-        banka_init = pd.to_numeric(current_df["Banka/ATM"], errors='coerce').fillna(0.0)
-        current_df["Hesap"] = ft_init + odeme_init - banka_init
-
-        edited_output = st.data_editor(
-            current_df,
-            column_config={
-                "Personel Adı": st.column_config.TextColumn("Personel Adı", required=True),
-                "Nakit Ft Tutarı Topl": st.column_config.NumberColumn("Nakit Ft Tutarı Topl", format="%.2f ₺"),
-                "Nakit Ödeme Tutarı Topl": st.column_config.NumberColumn("Nakit Ödeme Tutarı Topl", format="%.2f ₺"),
-                "Banka/ATM": st.column_config.NumberColumn("Banka/ATM (Manuel)", format="%.2f ₺"),
-                "Hesap": st.column_config.NumberColumn("Hesap", format="%.2f ₺", disabled=True),
-                "İşlem": st.column_config.CheckboxColumn("İşlem (Tamamlandı)", default=False)
-            },
-            disabled=["Hesap"],
-            hide_index=False,
-            use_container_width=True,
-            num_rows="fixed",
-            key="hesap_data_editor"
-        )
-
-        edited_df = pd.DataFrame(edited_output)
+        updated_rows = []
         
-        # Kullanıcının yaptığı değişiklikleri alıp formülü anında uyguluyoruz
-        ft_vals = pd.to_numeric(edited_df["Nakit Ft Tutarı Topl"], errors='coerce').fillna(0.0)
-        odeme_vals = pd.to_numeric(edited_df["Nakit Ödeme Tutarı Topl"], errors='coerce').fillna(0.0)
-        banka_vals = pd.to_numeric(edited_df["Banka/ATM"], errors='coerce').fillna(0.0)
-        
-        edited_df["Hesap"] = ft_vals + odeme_vals - banka_vals
+        # Her personel için dinamik ve anlık çalışan kart / satır yapısı
+        for idx, row in current_df.iterrows():
+            p_name = row["Personel Adı"]
+            ft_val = float(row["Nakit Ft Tutarı Topl"])
+            odeme_val = float(row["Nakit Ödeme Tutarı Topl"])
+            current_banka = float(row["Banka/ATM"])
+            current_islem = bool(row["İşlem"])
 
-        if not edited_df.equals(st.session_state.hesap_df):
-            st.session_state.hesap_df = edited_df
+            # Tamamlandı durumuna göre dinamik arka plan rengi
+            bg_style = "background: rgba(46, 125, 50, 0.35); border: 1px solid #2E7D32;" if current_islem else "background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08);"
+            
+            st.markdown(f"""
+            <div style="{bg_style} border-radius: 12px; padding: 12px 15px; margin-bottom: 10px;">
+                <div style="font-weight: bold; font-size: 15px; margin-bottom: 8px; color: #F57C00;">👤 {p_name}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            c1, c2, c3, c4, c5 = st.columns([2, 2, 2, 2, 1.5])
+            
+            with c1:
+                st.metric("Nakit Ft Topl", f"{ft_val:,.2f} ₺")
+            with c2:
+                st.metric("Nakit Ödeme Topl", f"{odeme_val:,.2f} ₺")
+            with c3:
+                # Anlık çalışan manuel Banka/ATM giriş alanı
+                new_banka = st.number_input(
+                    "Banka/ATM (Manuel)", 
+                    value=current_banka, 
+                    step=10.0, 
+                    format="%.2f", 
+                    key=f"banka_{idx}",
+                    label_visibility="collapsed"
+                )
+            with c4:
+                # Kesin Hesap Formülü: (Nakit Ft + Nakit Ödeme) - Banka/ATM
+                hesap_sonuc = ft_val + odeme_val - new_banka
+                st.metric("Hesap", f"{hesap_sonuc:,.2f} ₺")
+            with c5:
+                new_islem = st.checkbox("Tamam", value=current_islem, key=f"islem_{idx}")
+
+            st.markdown("<hr style='margin: 5px 0 15px 0; border: none; border-top: 1px solid rgba(255,255,255,0.05);'>", unsafe_allow_html=True)
+
+            updated_rows.append({
+                "Personel Adı": p_name,
+                "Nakit Ft Tutarı Topl": ft_val,
+                "Nakit Ödeme Tutarı Topl": odeme_val,
+                "Banka/ATM": new_banka,
+                "Hesap": hesap_sonuc,
+                "İşlem": new_islem
+            })
+
+        new_df = pd.DataFrame(updated_rows)
+        if not new_df.equals(st.session_state.hesap_df):
+            st.session_state.hesap_df = new_df
             st.rerun()
 
         st.markdown("<div class='kasa-box'>", unsafe_allow_html=True)
         st.subheader("💵 Genel Kasa ve Hesap Dengesi")
-        toplam_hesap = float(edited_df["Hesap"].sum())
+        toplam_hesap = float(new_df["Hesap"].sum())
 
         col1, col2, col3 = st.columns(3)
         col1.metric("📊 Toplam Hesap", f"{toplam_hesap:,.2f} ₺")
