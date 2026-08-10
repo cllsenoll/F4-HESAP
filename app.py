@@ -355,7 +355,7 @@ def process_personnel_account_data(df):
                 processed_clean_names.add(c_name)
 
     result_df = pd.DataFrame(final_rows)
-    # Kesin Hesap Mantığı: Nakit Ft Tutarı Topl + Nakit Ödeme Tutarı Topl - Banka/ATM
+    # Kesin Hesap Formülü: Nakit Ft Tutarı Topl + Nakit Ödeme Tutarı Topl - Banka/ATM
     result_df["Hesap"] = result_df["Nakit Ft Tutarı Topl"] + result_df["Nakit Ödeme Tutarı Topl"] - result_df["Banka/ATM"]
     result_df["İşlem"] = False
 
@@ -499,20 +499,14 @@ if st.session_state.active_tab == "HESAP":
             
         current_df = st.session_state.hesap_df.copy()
 
-        # Tabloyu çizdirmeden önce session verisindeki Hesap kolonunu en güncel formülle tazeliyoruz
+        # Hesap kolonunu editor öncesi kesinlikle güncelliyoruz
         ft_init = pd.to_numeric(current_df["Nakit Ft Tutarı Topl"], errors='coerce').fillna(0.0)
         odeme_init = pd.to_numeric(current_df["Nakit Ödeme Tutarı Topl"], errors='coerce').fillna(0.0)
         banka_init = pd.to_numeric(current_df["Banka/ATM"], errors='coerce').fillna(0.0)
         current_df["Hesap"] = ft_init + odeme_init - banka_init
 
-        # Tamamlanan satırların tamamen yeşil görünmesi için Styler fonksiyonu
-        def highlight_completed_rows(row):
-            if row.get('İşlem', False):
-                return ['background-color: rgba(46, 125, 50, 0.5); color: #ffffff; font-weight: bold;'] * len(row)
-            return [''] * len(row)
-
         edited_output = st.data_editor(
-            current_df.style.apply(highlight_completed_rows, axis=1),
+            current_df,
             column_config={
                 "Personel Adı": st.column_config.TextColumn("Personel Adı", required=True),
                 "Nakit Ft Tutarı Topl": st.column_config.NumberColumn("Nakit Ft Tutarı Topl", format="%.2f ₺"),
@@ -528,15 +522,15 @@ if st.session_state.active_tab == "HESAP":
             key="hesap_data_editor"
         )
 
-        # Düzenleme bittikten sonra gelen verileri alıp hesabı tekrar kesin olarak güncelliyoruz
         edited_df = pd.DataFrame(edited_output)
+        
+        # Kullanıcının yaptığı değişiklikleri alıp formülü anında uyguluyoruz
         ft_vals = pd.to_numeric(edited_df["Nakit Ft Tutarı Topl"], errors='coerce').fillna(0.0)
         odeme_vals = pd.to_numeric(edited_df["Nakit Ödeme Tutarı Topl"], errors='coerce').fillna(0.0)
         banka_vals = pd.to_numeric(edited_df["Banka/ATM"], errors='coerce').fillna(0.0)
         
         edited_df["Hesap"] = ft_vals + odeme_vals - banka_vals
-        
-        # Eğer hesaplanan değerlerde bir değişiklik olduysa session state'e kaydedip rerun tetikliyoruz
+
         if not edited_df.equals(st.session_state.hesap_df):
             st.session_state.hesap_df = edited_df
             st.rerun()
