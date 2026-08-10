@@ -30,10 +30,9 @@ KULLANICI_ISIM = "CELAL ŞENOL"
 KULLANICI_GOREV = "Şube Şefi"
 
 # ==========================================
-# GİTHUB PERSONEL FOTOĞRAF HARİTASI (Kesin Eşleşme)
+# GİTHUB PERSONEL FOTOĞRAF HARİTASI
 # ==========================================
 def get_github_avatar(personel_adi):
-    # İsimdeki olası fazla boşlukları temizleyip GitHub raw linkine kodluyoruz
     clean_name = str(personel_adi).strip()
     encoded_name = urllib.parse.quote(clean_name)
     return f"https://raw.githubusercontent.com/cllsenoll/F4-HESAP/main/{encoded_name}.png"
@@ -497,17 +496,30 @@ if uploaded_file is not None:
 # TAB 1: HESAP (GİTHUB PNG FOTOĞRAFLI PANEL)
 # ==========================================
 if st.session_state.active_tab == "HESAP":
-    st.title("📋 Günlük Personel Hesap Takip Paneli")
-    st.caption("✍️ Personel fotoğrafları doğrudan GitHub deponuzdan URL kodlanmış şekilde çekilir.")
-
     account_df = st.session_state.account_df
 
     if account_df is not None:
+        current_df = st.session_state.hesap_df.copy()
+        toplam_hesap = float(current_df["Hesap"].sum())
+
+        # En üst sağ kısımda Kasa ve Toplam Gösterimi
+        header_col1, header_col2 = st.columns([3, 2])
+        with header_col1:
+            st.title("📋 Günlük Personel Hesap Takip Paneli")
+        with header_col2:
+            st.markdown(f"""
+            <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 10px 15px; text-align: right; margin-top: 10px;">
+                <span style="font-size: 13px; color: #F57C00;">📊 Toplam Hesap: <strong>{toplam_hesap:,.2f} ₺</strong></span><br>
+                <span style="font-size: 13px; color: #4CAF50;">🏦 Kasa: <strong>{float(st.session_state.kasa_miktari):,.2f} ₺</strong></span>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.caption("✍️ Personel fotoğrafları doğrudan GitHub deponuzdan URL kodlanmış şekilde çekilir.")
+
         if st.sidebar.button("🔄 Verileri Sıfırla"):
             st.session_state.hesap_df = account_df.copy()
             st.rerun()
 
-        current_df = st.session_state.hesap_df.copy()
         updated_rows = []
         
         for idx, row in current_df.iterrows():
@@ -585,6 +597,7 @@ if st.session_state.active_tab == "HESAP":
             col3.metric("⚖️ Kasa Farkı Durumu", f"{kasa_fark:,.2f} ₺", delta="Durum: TAM", delta_color="normal")
         st.markdown("</div>", unsafe_allow_html=True)
     else:
+        st.title("📋 Günlük Personel Hesap Takip Paneli")
         st.info("💡 Lütfen sol taraftan **Personel Hesap Alımı Ekranı** dosyanızı yükleyin.")
 
 # ==========================================
