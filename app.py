@@ -26,15 +26,16 @@ if 'raw_df' not in st.session_state:
 if 'f4_df' not in st.session_state:
     st.session_state.f4_df = None
 
-KULLANICI_ISIM = "Celal ŞENOL"
+KULLANICI_ISIM = "CELAL ŞENOL"
 KULLANICI_GOREV = "Şube Şefi"
 
 # ==========================================
-# GİTHUB PERSONEL FOTOĞRAF HARİTASI
+# GİTHUB PERSONEL FOTOĞRAF HARİTASI (Kesin Eşleşme)
 # ==========================================
 def get_github_avatar(personel_adi):
-    formatted_name = str(personel_adi).strip()
-    encoded_name = urllib.parse.quote(formatted_name)
+    # İsimdeki olası fazla boşlukları temizleyip GitHub raw linkine kodluyoruz
+    clean_name = str(personel_adi).strip()
+    encoded_name = urllib.parse.quote(clean_name)
     return f"https://raw.githubusercontent.com/cllsenoll/F4-HESAP/main/{encoded_name}.png"
 
 # ==========================================
@@ -316,7 +317,8 @@ def process_personnel_account_data(df):
         "HASAN SAĞLAM",
         "MEHMET KAYMAZ",
         "SUAT ARI",
-        "SERGEN GÖRÜROĞLU"
+        "SERGEN GÖRÜROĞLU",
+        "CELAL ŞENOL"
     ]
 
     final_rows = []
@@ -520,7 +522,6 @@ if st.session_state.active_tab == "HESAP":
 
             bg_style = "background: rgba(46, 125, 50, 0.35); border: 1px solid #2E7D32;" if current_islem else "background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08);"
             
-            # Gelişmiş onerror mekanizması ile GitHub linki hata verirse otomatik yedek avatar gösterilir
             st.markdown(f"""
             <div style="{bg_style} border-radius: 12px; padding: 12px 15px; margin-bottom: 10px;">
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
