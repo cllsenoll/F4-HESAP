@@ -355,6 +355,7 @@ def process_personnel_account_data(df):
                 processed_clean_names.add(c_name)
 
     result_df = pd.DataFrame(final_rows)
+    # Kesin Hesap Mantığı: Nakit Ft Tutarı Topl + Nakit Ödeme Tutarı Topl - Banka/ATM
     result_df["Hesap"] = result_df["Nakit Ft Tutarı Topl"] + result_df["Nakit Ödeme Tutarı Topl"] - result_df["Banka/ATM"]
     result_df["İşlem"] = False
 
@@ -487,19 +488,31 @@ if uploaded_file is not None:
 # ==========================================
 if st.session_state.active_tab == "HESAP":
     st.title("📋 Günlük Personel Hesap Takip Tablosu")
-    st.caption("✍️ Değerleri ve **Banka/ATM** sütununu değiştirdiğinizde **Hesap** alanı anında güncellenir.")
+    st.caption("✍️ Değerleri veya **Banka/ATM** sütununu değiştirdiğinizde **Hesap** alanı anında güncellenir.")
 
     account_df = st.session_state.account_df
 
     if account_df is not None:
         if st.sidebar.button("🔄 Tabloyu Sıfırla"):
             st.session_state.hesap_df = account_df.copy()
+            st.rerun()
             
         current_df = st.session_state.hesap_df.copy()
 
-        # Önce kullanıcı düzenlemesini alalım ki hesaplama güncel verilerle yapılsın
+        # Tabloyu çizdirmeden önce session verisindeki Hesap kolonunu en güncel formülle tazeliyoruz
+        ft_init = pd.to_numeric(current_df["Nakit Ft Tutarı Topl"], errors='coerce').fillna(0.0)
+        odeme_init = pd.to_numeric(current_df["Nakit Ödeme Tutarı Topl"], errors='coerce').fillna(0.0)
+        banka_init = pd.to_numeric(current_df["Banka/ATM"], errors='coerce').fillna(0.0)
+        current_df["Hesap"] = ft_init + odeme_init - banka_init
+
+        # Tamamlanan satırların tamamen yeşil görünmesi için Styler fonksiyonu
+        def highlight_completed_rows(row):
+            if row.get('İşlem', False):
+                return ['background-color: rgba(46, 125, 50, 0.5); color: #ffffff; font-weight: bold;'] * len(row)
+            return [''] * len(row)
+
         edited_output = st.data_editor(
-            current_df,
+            current_df.style.apply(highlight_completed_rows, axis=1),
             column_config={
                 "Personel Adı": st.column_config.TextColumn("Personel Adı", required=True),
                 "Nakit Ft Tutarı Topl": st.column_config.NumberColumn("Nakit Ft Tutarı Topl", format="%.2f ₺"),
@@ -515,21 +528,18 @@ if st.session_state.active_tab == "HESAP":
             key="hesap_data_editor"
         )
 
-        # Tablodan gelen ham verileri sayısal formatlara çevirip hesaplama formülünü uyguluyoruz
+        # Düzenleme bittikten sonra gelen verileri alıp hesabı tekrar kesin olarak güncelliyoruz
         edited_df = pd.DataFrame(edited_output)
         ft_vals = pd.to_numeric(edited_df["Nakit Ft Tutarı Topl"], errors='coerce').fillna(0.0)
         odeme_vals = pd.to_numeric(edited_df["Nakit Ödeme Tutarı Topl"], errors='coerce').fillna(0.0)
         banka_vals = pd.to_numeric(edited_df["Banka/ATM"], errors='coerce').fillna(0.0)
         
-        # İstediğiniz net formül: (Nakit Ft + Nakit Ödeme) - Banka/ATM
         edited_df["Hesap"] = ft_vals + odeme_vals - banka_vals
-        st.session_state.hesap_df = edited_df
-
-        # Tamamlanan satırların tamamen yeşil görünmesi için Styler fonksiyonu
-        def highlight_completed_rows(row):
-            if row.get('İşlem', False):
-                return ['background-color: rgba(46, 125, 50, 0.5); color: #ffffff; font-weight: bold;'] * len(row)
-            return [''] * len(row)
+        
+        # Eğer hesaplanan değerlerde bir değişiklik olduysa session state'e kaydedip rerun tetikliyoruz
+        if not edited_df.equals(st.session_state.hesap_df):
+            st.session_state.hesap_df = edited_df
+            st.rerun()
 
         st.markdown("<div class='kasa-box'>", unsafe_allow_html=True)
         st.subheader("💵 Genel Kasa ve Hesap Dengesi")
