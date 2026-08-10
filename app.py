@@ -29,6 +29,21 @@ KULLANICI_ISIM = "Celal ŞENOL"
 KULLANICI_GOREV = "Şube Şefi"
 
 # ==========================================
+# PERSONEL FOTOĞRAF HARİTASI (Avatar URL'leri / Dosya Yolları)
+# ==========================================
+# Dilerseniz buradaki linkleri kendi personellerinizin gerçek fotoğraf bağlantıları veya yerel yollarıyla değiştirebilirsiniz.
+PERSONEL_FOTO_MAP = {
+    "HATİCE KÜBRA IŞIK": "https://api.dicebear.com/7.x/avataaars/svg?seed=Hatice",
+    "ALATTİN CEBECİ": "https://api.dicebear.com/7.x/avataaars/svg?seed=Alattin",
+    "BURCU DÜREN": "https://api.dicebear.com/7.x/avataaars/svg?seed=Burcu",
+    "AHMET BERKAN ÖKSÜZ": "https://api.dicebear.com/7.x/avataaars/svg?seed=Ahmet",
+    "HASAN SAĞLAM": "https://api.dicebear.com/7.x/avataaars/svg?seed=Hasan",
+    "MEHMET KAYMAZ": "https://api.dicebear.com/7.x/avataaars/svg?seed=Mehmet",
+    "SUAT ARI": "https://api.dicebear.com/7.x/avataaars/svg?seed=Suat",
+    "SERGEN GÖRÜROĞLU": "https://api.dicebear.com/7.x/avataaars/svg?seed=Sergen"
+}
+
+# ==========================================
 # MÜŞTERİ - PERSONEL EŞLEŞTİRME SÖZLÜĞÜ
 # ==========================================
 MUSTERI_PERSONEL_MAP = {
@@ -168,13 +183,6 @@ custom_css = """
         border-radius: 14px;
         padding: 20px;
         margin-top: 20px;
-    }
-    .personel-card {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 12px;
     }
 </style>
 """
@@ -490,11 +498,11 @@ if uploaded_file is not None:
         st.error(f"❌ Dosya Okuma/İşleme Hatası: {e}")
 
 # ==========================================
-# TAB 1: HESAP (ANLIK GÜNCELLENEN KONTROL PANELİ)
+# TAB 1: HESAP (FOTOĞRAFLI KONTROL PANELİ)
 # ==========================================
 if st.session_state.active_tab == "HESAP":
     st.title("📋 Günlük Personel Hesap Takip Paneli")
-    st.caption("✍️ Her personelin karşısındaki **Banka/ATM** alanına değer yazdığınızda veya **İşlem Tamamlandı** kutucuğunu işaretlediğinizde hesap ve satır rengi **anında** güncellenir.")
+    st.caption("✍️ Personellerin fotoğraflı kartları üzerinden **Banka/ATM** değerlerini girebilir, hesapları anlık takip edebilirsiniz.")
 
     account_df = st.session_state.account_df
 
@@ -504,10 +512,8 @@ if st.session_state.active_tab == "HESAP":
             st.rerun()
 
         current_df = st.session_state.hesap_df.copy()
-
         updated_rows = []
         
-        # Her personel için dinamik ve anlık çalışan kart / satır yapısı
         for idx, row in current_df.iterrows():
             p_name = row["Personel Adı"]
             ft_val = float(row["Nakit Ft Tutarı Topl"])
@@ -515,12 +521,18 @@ if st.session_state.active_tab == "HESAP":
             current_banka = float(row["Banka/ATM"])
             current_islem = bool(row["İşlem"])
 
-            # Tamamlandı durumuna göre dinamik arka plan rengi
+            # Personel için fotoğraf URL'si bulma (Tanımlı değilse varsayılan avatar)
+            foto_url = PERSONEL_FOTO_MAP.get(p_name, f"https://api.dicebear.com/7.x/avataaars/svg?seed={p_name.replace(' ', '')}")
+
             bg_style = "background: rgba(46, 125, 50, 0.35); border: 1px solid #2E7D32;" if current_islem else "background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08);"
             
+            # Fotoğraflı başlık yapısı
             st.markdown(f"""
             <div style="{bg_style} border-radius: 12px; padding: 12px 15px; margin-bottom: 10px;">
-                <div style="font-weight: bold; font-size: 15px; margin-bottom: 8px; color: #F57C00;">👤 {p_name}</div>
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                    <img src="{foto_url}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #F57C00; background: #fff;" />
+                    <span style="font-weight: bold; font-size: 16px; color: #FFFFFF;">{p_name}</span>
+                </div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -531,7 +543,6 @@ if st.session_state.active_tab == "HESAP":
             with c2:
                 st.metric("Nakit Ödeme Topl", f"{odeme_val:,.2f} ₺")
             with c3:
-                # Anlık çalışan manuel Banka/ATM giriş alanı
                 new_banka = st.number_input(
                     "Banka/ATM (Manuel)", 
                     value=current_banka, 
@@ -541,7 +552,6 @@ if st.session_state.active_tab == "HESAP":
                     label_visibility="collapsed"
                 )
             with c4:
-                # Kesin Hesap Formülü: (Nakit Ft + Nakit Ödeme) - Banka/ATM
                 hesap_sonuc = ft_val + odeme_val - new_banka
                 st.metric("Hesap", f"{hesap_sonuc:,.2f} ₺")
             with c5:
