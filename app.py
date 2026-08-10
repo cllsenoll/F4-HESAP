@@ -31,15 +31,15 @@ KULLANICI_GOREV = "Şube Şefi"
 # ==========================================
 # GİTHUB PERSONEL FOTOĞRAF HARİTASI
 # ==========================================
-# GitHub'daki dosya adlarınız neyse (örn: hatice_kubra_isik.jpg veya ahmet.png) buraya yazabilirsiniz.
 def get_github_avatar(personel_adi):
+    # Türkçe karakterleri ve boşlukları GitHub dosya adına tam uyumlu hale getiriyoruz
     tr_map = {'İ': 'i', 'I': 'i', 'Ş': 's', 'Ğ': 'g', 'Ü': 'u', 'Ö': 'o', 'Ç': 'c'}
-    clean_name = personel_adi.upper()
+    clean_name = str(personel_adi).upper().strip()
     for k, v in tr_map.items():
         clean_name = clean_name.replace(k, v)
     file_name = clean_name.lower().replace(' ', '_')
     
-    # GitHub raw bağlantısı (.jpg uzantılı varsayılmıştır, .png ise değiştirebilirsiniz)
+    # GitHub raw bağlantısı (Deponuzdaki dosya adlarıyla tam eşleşir)
     return f"https://raw.githubusercontent.com/cllsenoll/F4-HESAP/main/{file_name}.jpg"
 
 # ==========================================
@@ -524,7 +524,6 @@ if st.session_state.active_tab == "HESAP":
 
             bg_style = "background: rgba(46, 125, 50, 0.35); border: 1px solid #2E7D32;" if current_islem else "background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08);"
             
-            # Streamlit yerel image bileşeni veya güvenli HTML container kullanımı
             st.markdown(f"""
             <div style="{bg_style} border-radius: 12px; padding: 12px 15px; margin-bottom: 10px;">
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
