@@ -243,7 +243,7 @@ def smart_read_file(uploaded_file):
     raise Exception("Dosya yapısı çözümlenemedi. Lütfen dosyanın bozuk olmadığını kontrol edin.")
 
 # ==========================================
-# PERSONEL HESAP ALIMI EKRANI PARSER
+# PERSONEL HESAP ALIMI EKRANI PARSER (Banka/ATM sıfırlandı)
 # ==========================================
 def process_personnel_account_data(df):
     header_idx = 0
@@ -262,7 +262,7 @@ def process_personnel_account_data(df):
     cols_to_drop = [c for c in df.columns if "AÇIKLAMA" in str(c).upper() or "ACIKLAMA" in str(c).upper()]
     df = df.drop(columns=cols_to_drop, errors='ignore')
 
-    p_col, ft_col, odeme_col, banka_col = None, None, None, None
+    p_col, ft_col, odeme_col = None, None, None
 
     for col in df.columns:
         c_upper = str(col).upper()
@@ -272,14 +272,11 @@ def process_personnel_account_data(df):
             ft_col = col
         elif ("ÖDEME" in c_upper or "ODEME" in c_upper) and not odeme_col:
             odeme_col = col
-        elif ("BANKA" in c_upper or "ATM" in c_upper or "POS" in c_upper) and not banka_col:
-            banka_col = col
 
     cols_list = list(df.columns)
     if not p_col and len(cols_list) > 0: p_col = cols_list[0]
     if not ft_col and len(cols_list) > 1: ft_col = cols_list[1]
     if not odeme_col and len(cols_list) > 2: odeme_col = cols_list[2]
-    if not banka_col and len(cols_list) > 3: banka_col = cols_list[3]
 
     parsed_rows = []
     for _, row in df.iterrows():
@@ -291,14 +288,13 @@ def process_personnel_account_data(df):
             
         ft_val = parse_turkish_float(row[ft_col]) if ft_col else 0.0
         odeme_val = parse_turkish_float(row[odeme_col]) if odeme_col else 0.0
-        banka_val = parse_turkish_float(row[banka_col]) if banka_col else 0.0
 
         parsed_rows.append({
             "Raw_Name": raw_p_name,
             "Clean_Name": c_p_name,
             "Nakit Ft Tutarı Topl": ft_val,
             "Nakit Ödeme Tutarı Topl": odeme_val,
-            "Banka/ATM": banka_val
+            "Banka/ATM": 0.0  # Banka/ATM alanı tamamen sıfırdan başlatılır, manuel girilecek
         })
 
     temp_df = pd.DataFrame(parsed_rows)
@@ -335,7 +331,7 @@ def process_personnel_account_data(df):
                 "Personel Adı": fixed_name,
                 "Nakit Ft Tutarı Topl": float(matched_row["Nakit Ft Tutarı Topl"]),
                 "Nakit Ödeme Tutarı Topl": float(matched_row["Nakit Ödeme Tutarı Topl"]),
-                "Banka/ATM": float(matched_row["Banka/ATM"]),
+                "Banka/ATM": 0.0,
             })
             processed_clean_names.add(matched_row["Clean_Name"])
         else:
@@ -354,11 +350,12 @@ def process_personnel_account_data(df):
                     "Personel Adı": row["Raw_Name"],
                     "Nakit Ft Tutarı Topl": float(row["Nakit Ft Tutarı Topl"]),
                     "Nakit Ödeme Tutarı Topl": float(row["Nakit Ödeme Tutarı Topl"]),
-                    "Banka/ATM": float(row["Banka/ATM"]),
+                    "Banka/ATM": 0.0,
                 })
                 processed_clean_names.add(c_name)
 
     result_df = pd.DataFrame(final_rows)
+    # Yeni Hesap Mantığı: (Nakit Ft Tutarı Topl + Nakit Ödeme Tutarı Topl) - Banka/ATM
     result_df["Hesap"] = result_df["Nakit Ft Tutarı Topl"] + result_df["Nakit Ödeme Tutarı Topl"] - result_df["Banka/ATM"]
     result_df["İşlem"] = False
 
@@ -491,7 +488,7 @@ if uploaded_file is not None:
 # ==========================================
 if st.session_state.active_tab == "HESAP":
     st.title("📋 Günlük Personel Hesap Takip Tablosu")
-    st.caption("✍️ Değerleri değiştirdiğinizde **Hesap** alanı canlı olarak güncellenir.")
+    st.caption("✍️ Değerleri (özellikle **Banka/ATM** sütununu) değiştirdiğinizde **Hesap** alanı canlı olarak güncellenir.")
 
     account_df = st.session_state.account_df
 
@@ -512,7 +509,7 @@ if st.session_state.active_tab == "HESAP":
                 "Personel Adı": st.column_config.TextColumn("Personel Adı", required=True),
                 "Nakit Ft Tutarı Topl": st.column_config.NumberColumn("Nakit Ft Tutarı Topl", format="%.2f ₺"),
                 "Nakit Ödeme Tutarı Topl": st.column_config.NumberColumn("Nakit Ödeme Tutarı Topl", format="%.2f ₺"),
-                "Banka/ATM": st.column_config.NumberColumn("Banka/ATM", format="%.2f ₺"),
+                "Banka/ATM": st.column_config.NumberColumn("Banka/ATM (Manuel)", format="%.2f ₺"),
                 "Hesap": st.column_config.NumberColumn("Hesap", format="%.2f ₺", disabled=True),
                 "İşlem": st.column_config.CheckboxColumn("İşlem (Tamamlandı)", default=False)
             },
@@ -526,6 +523,8 @@ if st.session_state.active_tab == "HESAP":
         ft_vals = pd.to_numeric(edited_df["Nakit Ft Tutarı Topl"], errors='coerce').fillna(0.0)
         odeme_vals = pd.to_numeric(edited_df["Nakit Ödeme Tutarı Topl"], errors='coerce').fillna(0.0)
         banka_vals = pd.to_numeric(edited_df["Banka/ATM"], errors='coerce').fillna(0.0)
+        
+        # Güncellenmiş Hesap Formülü: (Nakit Ft + Nakit Ödeme) - Banka/ATM
         edited_df["Hesap"] = ft_vals + odeme_vals - banka_vals
         st.session_state.hesap_df = edited_df
 
