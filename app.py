@@ -502,22 +502,52 @@ if st.session_state.active_tab == "HESAP":
         current_df = st.session_state.hesap_df.copy()
         toplam_hesap = float(current_df["Hesap"].sum())
 
-        # En üst sağ kısımda Kasa ve Toplam Gösterimi
-        header_col1, header_col2 = st.columns([3, 2])
-        with header_col1:
+        # Kasa Değişiklik Geri Çağırma Fonksiyonu
+        def update_kasa():
+            st.session_state.kasa_miktari = st.session_state.ust_kasa_input
+
+        # Üst Kısım: Başlık ve En Üst Sağda Manüel Kasa / Toplam / Eksik-Fazla Alanı
+        top_col1, top_col2 = st.columns([2.5, 2.5])
+        with top_col1:
             st.title("📋 Günlük Personel Hesap Takip Paneli")
-        with header_col2:
-            st.markdown(f"""
-            <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 10px 15px; text-align: right; margin-top: 10px;">
-                <span style="font-size: 13px; color: #F57C00;">📊 Toplam Hesap: <strong>{toplam_hesap:,.2f} ₺</strong></span><br>
-                <span style="font-size: 13px; color: #4CAF50;">🏦 Kasa: <strong>{float(st.session_state.kasa_miktari):,.2f} ₺</strong></span>
-            </div>
-            """, unsafe_allow_html=True)
+        with top_col2:
+            st.markdown("<div style='background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 12px; margin-top: 5px;'>", unsafe_allow_html=True)
+            
+            kasa_input_col1, kasa_input_col2 = st.columns(2)
+            with kasa_input_col1:
+                st.number_input(
+                    "🏦 MANÜEL KASA GİR", 
+                    value=float(st.session_state.kasa_miktari), 
+                    step=100.0, 
+                    format="%.2f", 
+                    key="ust_kasa_input",
+                    on_change=update_kasa
+                )
+            with kasa_input_col2:
+                st.markdown(f"<div style='padding-top: 28px;'><span style='font-size: 13px; color: #F57C00;'>📊 Toplam: <strong>{toplam_hesap:,.2f} ₺</strong></span></div>", unsafe_allow_html=True)
+            
+            # Anlık Eksik / Fazla Durum Hesaplama
+            GuncelKasa = float(st.session_state.ust_kasa_input if "ust_kasa_input" in st.session_state else st.session_state.kasa_miktari)
+            fark = toplam_hesap - GuncelKasa
+            
+            if fark > 0:
+                durum_metni = f"🔴 KASA EKSİK: {fark:,.2f} ₺"
+                renk_kodu = "#FF5252"
+            elif fark < 0:
+                durum_metni = f"🟢 KASA FAZLA: {abs(fark):,.2f} ₺"
+                renk_kodu = "#4CAF50"
+            else:
+                durum_metni = "✅ KASA TAM (0.00 ₺)"
+                renk_kodu = "#FFFFFF"
+            
+            st.markdown(f"<div style='text-align: center; padding-top: 8px; font-weight: bold; font-size: 15px; color: {renk_kodu};'>{durum_metni}</div>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
         st.caption("✍️ Personel fotoğrafları doğrudan GitHub deponuzdan URL kodlanmış şekilde çekilir.")
 
         if st.sidebar.button("🔄 Verileri Sıfırla"):
             st.session_state.hesap_df = account_df.copy()
+            st.session_state.kasa_miktari = 0.0
             st.rerun()
 
         updated_rows = []
@@ -580,21 +610,21 @@ if st.session_state.active_tab == "HESAP":
             st.session_state.hesap_df = new_df
             st.rerun()
 
+        # Alt Özet Paneli
         st.markdown("<div class='kasa-box'>", unsafe_allow_html=True)
-        st.subheader("💵 Genel Kasa ve Hesap Dengesi")
-        toplam_hesap = float(new_df["Hesap"].sum())
+        st.subheader("💵 Genel Kasa ve Hesap Dengesi Özeti")
+        toplam_hesap_alt = float(new_df["Hesap"].sum())
 
         col1, col2, col3 = st.columns(3)
-        col1.metric("📊 Toplam Hesap", f"{toplam_hesap:,.2f} ₺")
+        col1.metric("📊 Toplam Hesap", f"{toplam_hesap_alt:,.2f} ₺")
+        col2.metric("🏦 Girilen Kasa", f"{GuncelKasa:,.2f} ₺")
 
-        kasa_val = col2.number_input("🏦 KASA (Manuel Giriniz)", value=float(st.session_state.kasa_miktari), step=100.0, format="%.2f")
-        st.session_state.kasa_miktari = kasa_val
-
-        kasa_fark = toplam_hesap - kasa_val
-        if kasa_val > toplam_hesap:
-            col3.metric("⚖️ Kasa Farkı Durumu", f"{kasa_fark:,.2f} ₺", delta="Durum: AÇIK", delta_color="inverse")
+        if fark > 0:
+            col3.metric("⚖️ Kasa Durumu", f"{fark:,.2f} ₺", delta="Durum: EKSİK", delta_color="inverse")
+        elif fark < 0:
+            col3.metric("⚖️ Kasa Durumu", f"{abs(fark):,.2f} ₺", delta="Durum: FAZLA", delta_color="normal")
         else:
-            col3.metric("⚖️ Kasa Farkı Durumu", f"{kasa_fark:,.2f} ₺", delta="Durum: TAM", delta_color="normal")
+            col3.metric("⚖️ Kasa Durumu", f"0.00 ₺", delta="Durum: TAM", delta_color="off")
         st.markdown("</div>", unsafe_allow_html=True)
     else:
         st.title("📋 Günlük Personel Hesap Takip Paneli")
