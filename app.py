@@ -241,12 +241,12 @@ def smart_read_file(uploaded_file):
     except Exception:
         pass
 
-    for enc': ['utf-8', 'cp1254', 'latin1']:
-    try:
+    for enc in ['utf-8', 'cp1254', 'latin1']:
+        try:
             dfs = pd.read_html(io.BytesIO(file_bytes), encoding=enc)
             if dfs and len(dfs) > 0:
                 return dfs[0]
-    except Exception:
+        except Exception:
             continue
 
     raise Exception("Dosya yapısı çözümlenemedi. Lütfen dosyanın bozuk olmadığını kontrol edin.")
@@ -533,7 +533,7 @@ if st.session_state.active_tab == "HESAP":
             with kasa_input_col2:
                 st.markdown(f"<div style='padding-top: 28px;'><span style='font-size: 13px; color: #F57C00;'>📊 Toplam: <strong>{temp_hesap_toplam:,.2f} ₺</strong></span></div>", unsafe_allow_html=True)
             
-            # Anlık Kasa Durumu Hesaplama (Kasa Değeri > Toplam ise FAZLA [Yeşil], Kasa Değeri < Toplam ise EKSİK/AÇIK [Kırmızı])
+            # Anlık Kasa Durumu Hesaplama
             GuncelKasa = float(st.session_state.ust_kasa_input if "ust_kasa_input" in st.session_state else st.session_state.kasa_miktari)
             fark = GuncelKasa - temp_hesap_toplam
             
