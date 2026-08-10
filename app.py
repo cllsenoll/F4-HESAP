@@ -7,7 +7,7 @@ import urllib.parse
 # 1. SAYFA YAPILANDIRMASI
 st.set_page_config(
     page_title="Görükle Acente - Hesap & F4 Paneli",
-    page_icon="💰",
+    page_icon="📦",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -136,44 +136,47 @@ MUSTERI_PERSONEL_MAP = {
 }
 
 # ==========================================
-# CSS VE TRANSLATE KORUMA KODLARI
+# YURTİÇİ KARGO KURUMSAL TEMA (CSS)
 # ==========================================
 custom_css = """
 <style>
     .notranslate {
         translate: no !important;
     }
+    /* Yurtiçi Kargo Kurumsal Mavi Arka Plan */
     .stApp {
-        background-color: #070E1E;
+        background-color: #0047AB;
         color: #FFFFFF;
     }
     h1, h2, h3, h4, h5, h6, p, span, label {
         color: #FFFFFF !important;
         font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     }
+    /* Kurumsal Koyu Mavi Sidebar */
     [data-testid="stSidebar"] {
-        background-color: #0B172E !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        background-color: #003399 !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.15);
     }
+    /* Sidebar Butonları ve Turuncu Vurgular */
     [data-testid="stSidebar"] div.stButton > button {
         width: 100% !important;
         height: 48px !important;
         border-radius: 10px !important;
         font-weight: 600 !important;
-        background: linear-gradient(135deg, #0A58CA 0%, #032057 100%) !important;
+        background: linear-gradient(135deg, #FF6600 0%, #D45500 100%) !important;
         color: #FFFFFF !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
         margin-bottom: 6px !important;
         text-align: left !important;
         padding-left: 15px !important;
     }
     [data-testid="stSidebar"] div.stButton > button:hover {
-        background: linear-gradient(135deg, #0D6EFD 0%, #0A58CA 100%) !important;
-        border-color: #F57C00 !important;
+        background: linear-gradient(135deg, #FF8533 0%, #FF6600 100%) !important;
+        border-color: #FFFFFF !important;
     }
     .kasa-box {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 102, 0, 0.3);
         border-radius: 14px;
         padding: 20px;
         margin-top: 20px;
@@ -449,22 +452,22 @@ with st.sidebar:
     st.markdown("""
     <div class="notranslate" style="text-align: center; padding-bottom: 10px;">
         <h2 style="margin: 0; color: #FFFFFF;">Yurtiçi Kargo</h2>
-        <h4 style="margin: 0; color: #F57C00;">Görükle Acente KOYS</h4>
+        <h4 style="margin: 0; color: #FF6600;">Görükle Acente KOYS</h4>
     </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
+    st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.2);'>", unsafe_allow_html=True)
     
     st.markdown(f"""
-    <div class="notranslate" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
-        <small style="color: #F57C00;">Aktif Kullanıcı:</small><br>
+    <div class="notranslate" style="background: rgba(255, 255, 255, 0.08); padding: 10px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #FF6600;">
+        <small style="color: #FF6600;">Aktif Kullanıcı:</small><br>
         <strong>{KULLANICI_ISIM}</strong> ({KULLANICI_GOREV})
     </div>
     """, unsafe_allow_html=True)
 
     uploaded_file = st.file_uploader("📂 Rapor / Liste Yükle", type=['csv', 'xlsx', 'xls', 'html'])
     
-    st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
+    st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.2);'>", unsafe_allow_html=True)
     
     if st.button("💰 HESAP"):
         st.session_state.active_tab = "HESAP"
@@ -518,7 +521,7 @@ if st.session_state.active_tab == "HESAP":
         with top_col1:
             st.title("📋 Günlük Personel Hesap Takip Paneli")
         with top_col2:
-            st.markdown("<div style='background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 12px; margin-top: 5px;'>", unsafe_allow_html=True)
+            st.markdown("<div style='background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 102, 0, 0.4); border-radius: 12px; padding: 12px; margin-top: 5px;'>", unsafe_allow_html=True)
             
             kasa_input_col1, kasa_input_col2 = st.columns(2)
             with kasa_input_col1:
@@ -531,7 +534,7 @@ if st.session_state.active_tab == "HESAP":
                     on_change=update_kasa
                 )
             with kasa_input_col2:
-                st.markdown(f"<div style='padding-top: 28px;'><span style='font-size: 13px; color: #F57C00;'>📊 Toplam: <strong>{temp_hesap_toplam:,.2f} ₺</strong></span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='padding-top: 28px;'><span style='font-size: 13px; color: #FF6600;'>📊 Toplam: <strong>{temp_hesap_toplam:,.2f} ₺</strong></span></div>", unsafe_allow_html=True)
             
             # Anlık Kasa Durumu Hesaplama
             GuncelKasa = float(st.session_state.ust_kasa_input if "ust_kasa_input" in st.session_state else st.session_state.kasa_miktari)
@@ -568,12 +571,12 @@ if st.session_state.active_tab == "HESAP":
             foto_url = get_github_avatar(p_name)
             fallback_url = f"https://api.dicebear.com/7.x/avataaars/svg?seed={p_name.replace(' ', '')}"
 
-            bg_style = "background: rgba(46, 125, 50, 0.35); border: 1px solid #2E7D32;" if current_islem else "background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08);"
+            bg_style = "background: rgba(46, 125, 50, 0.35); border: 1px solid #2E7D32;" if current_islem else "background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15);"
             
             st.markdown(f"""
             <div style="{bg_style} border-radius: 12px; padding: 12px 15px; margin-bottom: 10px;">
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-                    <img src="{foto_url}" width="40" height="40" style="border-radius: 50%; object-fit: cover; border: 2px solid #F57C00; background: #fff;" onerror="this.onerror=null; this.src='{fallback_url}';" />
+                    <img src="{foto_url}" width="40" height="40" style="border-radius: 50%; object-fit: cover; border: 2px solid #FF6600; background: #fff;" onerror="this.onerror=null; this.src='{fallback_url}';" />
                     <span style="font-weight: bold; font-size: 16px; color: #FFFFFF;">{p_name}</span>
                 </div>
             </div>
@@ -600,7 +603,7 @@ if st.session_state.active_tab == "HESAP":
             with c5:
                 new_islem = st.checkbox("Tamam", value=current_islem, key=f"islem_{idx}")
 
-            st.markdown("<hr style='margin: 5px 0 15px 0; border: none; border-top: 1px solid rgba(255,255,255,0.05);'>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin: 5px 0 15px 0; border: none; border-top: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
 
             updated_rows.append({
                 "Personel Adı": p_name,
