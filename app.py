@@ -29,18 +29,17 @@ KULLANICI_ISIM = "Celal ŞENOL"
 KULLANICI_GOREV = "Şube Şefi"
 
 # ==========================================
-# GİTHUB PERSONEL FOTOĞRAF HARİTASI
+# GİTHUB PERSONEL FOTOĞRAF HARİTASI (.png)
 # ==========================================
 def get_github_avatar(personel_adi):
-    # Türkçe karakterleri ve boşlukları GitHub dosya adına tam uyumlu hale getiriyoruz
     tr_map = {'İ': 'i', 'I': 'i', 'Ş': 's', 'Ğ': 'g', 'Ü': 'u', 'Ö': 'o', 'Ç': 'c'}
     clean_name = str(personel_adi).upper().strip()
     for k, v in tr_map.items():
         clean_name = clean_name.replace(k, v)
     file_name = clean_name.lower().replace(' ', '_')
     
-    # GitHub raw bağlantısı (Deponuzdaki dosya adlarıyla tam eşleşir)
-    return f"https://raw.githubusercontent.com/cllsenoll/F4-HESAP/main/{file_name}.jpg"
+    # GitHub raw bağlantısı (.png formatında)
+    return f"https://raw.githubusercontent.com/cllsenoll/F4-HESAP/main/{file_name}.png"
 
 # ==========================================
 # MÜŞTERİ - PERSONEL EŞLEŞTİRME SÖZLÜĞÜ
@@ -497,11 +496,11 @@ if uploaded_file is not None:
         st.error(f"❌ Dosya Okuma/İşleme Hatası: {e}")
 
 # ==========================================
-# TAB 1: HESAP (GİTHUB FOTOĞRAFLI PANEL)
+# TAB 1: HESAP (GİTHUB PNG FOTOĞRAFLI PANEL)
 # ==========================================
 if st.session_state.active_tab == "HESAP":
     st.title("📋 Günlük Personel Hesap Takip Paneli")
-    st.caption("✍️ Personel fotoğrafları doğrudan GitHub deponuzdan çekilir. Değerleri anlık güncelleyebilirsiniz.")
+    st.caption("✍️ Personel fotoğrafları doğrudan GitHub deponuzdan (.png formatında) çekilir. Değerleri anlık güncelleyebilirsiniz.")
 
     account_df = st.session_state.account_df
 
