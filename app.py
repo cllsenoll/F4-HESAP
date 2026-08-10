@@ -535,14 +535,13 @@ if st.session_state.active_tab == "HESAP":
             
             # Anlık Kasa Durumu Hesaplama
             GuncelKasa = float(st.session_state.ust_kasa_input if "ust_kasa_input" in st.session_state else st.session_state.kasa_miktari)
-            fark = GuncelKasa - temp_hesap_toplam
             
-            if fark > 0:
-                durum_metni = f"🟢 KASA FAZLA: {fark:,.2f} ₺"
-                renk_kodu = "#4CAF50"
-            elif fark < 0:
-                durum_metni = f"🔴 KASA AÇIK (EKSİK): {abs(fark):,.2f} ₺"
+            if GuncelKasa > temp_hesap_toplam:
+                durum_metni = f"🔴 AÇIK {abs(GuncelKasa - temp_hesap_toplam):,.2f} ₺"
                 renk_kodu = "#FF5252"
+            elif GuncelKasa < temp_hesap_toplam:
+                durum_metni = f"🟢 FAZLA {abs(temp_hesap_toplam - GuncelKasa):,.2f} ₺"
+                renk_kodu = "#4CAF50"
             else:
                 durum_metni = "✅ KASA TAM (0.00 ₺)"
                 renk_kodu = "#FFFFFF"
@@ -627,10 +626,11 @@ if st.session_state.active_tab == "HESAP":
         col1.metric("📊 Toplam Hesap", f"{toplam_hesap_alt:,.2f} ₺")
         col2.metric("🏦 Girilen Kasa", f"{GuncelKasa:,.2f} ₺")
 
-        if fark > 0:
-            col3.metric("⚖️ Kasa Durumu", f"{fark:,.2f} ₺", delta="FAZLA", delta_color="normal")
-        elif fark < 0:
-            col3.metric("⚖️ Kasa Durumu", f"{abs(fark):,.2f} ₺", delta="AÇİK", delta_color="inverse")
+        fark_alt = GuncelKasa - toplam_hesap_alt
+        if fark_alt > 0:
+            col3.metric("⚖️ Kasa Durumu", f"{fark_alt:,.2f} ₺", delta="FAZLA", delta_color="normal")
+        elif fark_alt < 0:
+            col3.metric("⚖️ Kasa Durumu", f"{abs(fark_alt):,.2f} ₺", delta="AÇIK", delta_color="inverse")
         else:
             col3.metric("⚖️ Kasa Durumu", f"0.00 ₺", delta="TAM", delta_color="off")
         st.markdown("</div>", unsafe_allow_html=True)
@@ -680,47 +680,3 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
         if not display_f4_df.empty:
             toplam_secilen_borc = display_f4_df["Fatura Borcu"].sum()
             st.metric(label=f"{selected_f4_personel} - Toplam Fatura Borcu / Tahsilat Hedefi", value=f"{toplam_secilen_borc:,.2f} ₺")
-            
-            html_table = display_f4_df.to_html(classes='table table-striped', index=False)
-            print_html = f"""
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <title>F4 Tahsilat Listesi - {selected_f4_personel}</title>
-                <style>
-                    body {{ font-family: Arial, sans-serif; margin: 20px; color: #333; }}
-                    h2 {{ color: #0A58CA; }}
-                    table {{ width: 100% !important; border-collapse: collapse; margin-top: 15px; }}
-                    th, td {{ border: 1px solid #ddd; padding: 8px 12px; text-align: left; font-size: 12px; }}
-                    th {{ background-color: #f2f2f2; }}
-                </style>
-            </head>
-            <body onload="window.print();">
-                <h2>Görükle Acente - F4 Tahsilat ve Borç Listesi</h2>
-                <p><b>Sorumlu Personel:</b> {selected_f4_personel}</p>
-                <p><b>Toplam Fatura Borcu:</b> {toplam_secilen_borc:,.2f} ₺</p>
-                {html_table}
-            </body>
-            </html>
-            """
-            
-            st.download_button(
-                label=f"📄 Görüntülenen Listeyi Yazdır / PDF Olarak Kaydet",
-                data=print_html,
-                file_name=f"F4_Tahsilat_Listesi_{selected_f4_personel}.html",
-                mime="text/html",
-                help="Bu butona tıkladığınızda açılacak sayfadan hedefi 'PDF olarak kaydet' seçerek çıktısını alabilirsiniz."
-            )
-
-    else:
-        raw_df = st.session_state.raw_df
-        if raw_df is not None:
-            f4_res = process_f4_payment_data(raw_df)
-            st.session_state.f4_df = f4_res
-            if f4_res is not None and not f4_res.empty:
-                st.success(f"✅ F4 Ödeme Listesi başarıyla analiz edildi.")
-                st.rerun()
-            else:
-                st.warning("⚠️ Yüklenen dosya içerisinde F4 ödeme kriterlerine uygun (borcu sıfırdan büyük) veri bulunamadı.")
-        else:
-            st.info("💡 F4 Ödeme Listesi verilerini görüntülemek için sol menüden ilgili F4 ÖDEME LİSTESİ dosyanızı yükleyin.")
