@@ -30,10 +30,9 @@ KULLANICI_ISIM = "Celal ŞENOL"
 KULLANICI_GOREV = "Şube Şefi"
 
 # ==========================================
-# GİTHUB PERSONEL FOTOĞRAF HARİTASI (URL Encode Uyumlu)
+# GİTHUB PERSONEL FOTOĞRAF HARİTASI
 # ==========================================
 def get_github_avatar(personel_adi):
-    # Orijinal ismi koruyup URL formatına (boşluk ve türkçe karakterler için) güvenle kodluyoruz
     formatted_name = str(personel_adi).strip()
     encoded_name = urllib.parse.quote(formatted_name)
     return f"https://raw.githubusercontent.com/cllsenoll/F4-HESAP/main/{encoded_name}.png"
@@ -517,13 +516,15 @@ if st.session_state.active_tab == "HESAP":
             current_islem = bool(row["İşlem"])
 
             foto_url = get_github_avatar(p_name)
+            fallback_url = f"https://api.dicebear.com/7.x/avataaars/svg?seed={p_name.replace(' ', '')}"
 
             bg_style = "background: rgba(46, 125, 50, 0.35); border: 1px solid #2E7D32;" if current_islem else "background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08);"
             
+            # Gelişmiş onerror mekanizması ile GitHub linki hata verirse otomatik yedek avatar gösterilir
             st.markdown(f"""
             <div style="{bg_style} border-radius: 12px; padding: 12px 15px; margin-bottom: 10px;">
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-                    <img src="{foto_url}" width="40" height="40" style="border-radius: 50%; object-fit: cover; border: 2px solid #F57C00; background: #fff;" onerror="this.onerror=null; this.src='https://api.dicebear.com/7.x/avataaars/svg?seed={p_name.replace(' ', '')}';" />
+                    <img src="{foto_url}" width="40" height="40" style="border-radius: 50%; object-fit: cover; border: 2px solid #F57C00; background: #fff;" onerror="this.onerror=null; this.src='{fallback_url}';" />
                     <span style="font-weight: bold; font-size: 16px; color: #FFFFFF;">{p_name}</span>
                 </div>
             </div>
