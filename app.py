@@ -136,15 +136,16 @@ MUSTERI_PERSONEL_MAP = {
 }
 
 # ==========================================
-# CSS VE TRANSLATE KORUMA KODLARI
+# CSS VE YENİ TEMA KODLARI (3D Butonlar, Lacivert Arka Plan, Canlı Turuncu Satırlar, Canlı Mavi Butonlar)
 # ==========================================
 custom_css = """
 <style>
     .notranslate {
         translate: no !important;
     }
+    /* Arka Plan Lacivert */
     .stApp {
-        background-color: #070E1E;
+        background-color: #0B192C !important;
         color: #FFFFFF;
     }
     h1, h2, h3, h4, h5, h6, p, span, label {
@@ -152,31 +153,44 @@ custom_css = """
         font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     }
     [data-testid="stSidebar"] {
-        background-color: #0B172E !important;
+        background-color: #1E3E62 !important;
         border-right: 1px solid rgba(255, 255, 255, 0.08);
     }
-    [data-testid="stSidebar"] div.stButton > button {
+    
+    /* 3D Görünümlü Canlı Mavi Butonlar */
+    [data-testid="stSidebar"] div.stButton > button, div.stButton > button {
         width: 100% !important;
         height: 48px !important;
         border-radius: 10px !important;
         font-weight: 600 !important;
-        background: linear-gradient(135deg, #0A58CA 0%, #032057 100%) !important;
+        background: linear-gradient(135deg, #00B4D8 0%, #0077B6 100%) !important;
         color: #FFFFFF !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        margin-bottom: 6px !important;
+        border: 1px solid #90E0EF !important;
+        box-shadow: 0 6px 0 #03045E, 0 8px 10px rgba(0, 0, 0, 0.4) !important;
+        transform: translateY(0);
+        transition: all 0.1s ease;
+        margin-bottom: 10px !important;
         text-align: left !important;
         padding-left: 15px !important;
     }
-    [data-testid="stSidebar"] div.stButton > button:hover {
-        background: linear-gradient(135deg, #0D6EFD 0%, #0A58CA 100%) !important;
-        border-color: #F57C00 !important;
+    [data-testid="stSidebar"] div.stButton > button:hover, div.stButton > button:hover {
+        background: linear-gradient(135deg, #48CAE4 0%, #00B4D8 100%) !important;
+        box-shadow: 0 4px 0 #03045E, 0 6px 8px rgba(0, 0, 0, 0.4) !important;
+        transform: translateY(2px);
     }
+    [data-testid="stSidebar"] div.stButton > button:active, div.stButton > button:active {
+        box-shadow: 0 0 0 #03045E, 0 2px 4px rgba(0, 0, 0, 0.4) !important;
+        transform: translateY(6px);
+    }
+
+    /* Canlı Turuncu Satır / Kart Tasarımları */
     .kasa-box {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: linear-gradient(135deg, #FF7B00 0%, #FF5400 100%);
+        border: 2px solid #FFA200;
         border-radius: 14px;
         padding: 20px;
         margin-top: 20px;
+        box-shadow: 0 6px 12px rgba(255, 123, 0, 0.3);
     }
 </style>
 """
@@ -449,7 +463,7 @@ with st.sidebar:
     st.markdown("""
     <div class="notranslate" style="text-align: center; padding-bottom: 10px;">
         <h2 style="margin: 0; color: #FFFFFF;">Yurtiçi Kargo</h2>
-        <h4 style="margin: 0; color: #F57C00;">Görükle Acente KOYS</h4>
+        <h4 style="margin: 0; color: #00B4D8;">Görükle Acente KOYS</h4>
     </div>
     """, unsafe_allow_html=True)
     
@@ -457,7 +471,7 @@ with st.sidebar:
     
     st.markdown(f"""
     <div class="notranslate" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
-        <small style="color: #F57C00;">Aktif Kullanıcı:</small><br>
+        <small style="color: #00B4D8;">Aktif Kullanıcı:</small><br>
         <strong>{KULLANICI_ISIM}</strong> ({KULLANICI_GOREV})
     </div>
     """, unsafe_allow_html=True)
@@ -518,7 +532,7 @@ if st.session_state.active_tab == "HESAP":
         with top_col1:
             st.title("📋 Günlük Personel Hesap Takip Paneli")
         with top_col2:
-            st.markdown("<div style='background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 12px; margin-top: 5px;'>", unsafe_allow_html=True)
+            st.markdown("<div style='background: linear-gradient(135deg, #FF7B00 0%, #FF5400 100%); border: 2px solid #FFA200; border-radius: 12px; padding: 12px; margin-top: 5px; box-shadow: 0 4px 8px rgba(255, 123, 0, 0.3);'>", unsafe_allow_html=True)
             
             kasa_input_col1, kasa_input_col2 = st.columns(2)
             with kasa_input_col1:
@@ -531,17 +545,17 @@ if st.session_state.active_tab == "HESAP":
                     on_change=update_kasa
                 )
             with kasa_input_col2:
-                st.markdown(f"<div style='padding-top: 28px;'><span style='font-size: 13px; color: #F57C00;'>📊 Toplam: <strong>{temp_hesap_toplam:,.2f} ₺</strong></span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='padding-top: 28px;'><span style='font-size: 13px; color: #FFFFFF;'>📊 Toplam: <strong>{temp_hesap_toplam:,.2f} ₺</strong></span></div>", unsafe_allow_html=True)
             
             # Anlık Kasa Durumu Hesaplama
             GuncelKasa = float(st.session_state.ust_kasa_input if "ust_kasa_input" in st.session_state else st.session_state.kasa_miktari)
             
             if GuncelKasa > temp_hesap_toplam:
                 durum_metni = f"🔴 AÇIK {abs(GuncelKasa - temp_hesap_toplam):,.2f} ₺"
-                renk_kodu = "#FF5252"
+                renk_kodu = "#FFE5D9"
             elif GuncelKasa < temp_hesap_toplam:
                 durum_metni = f"🟢 FAZLA {abs(temp_hesap_toplam - GuncelKasa):,.2f} ₺"
-                renk_kodu = "#4CAF50"
+                renk_kodu = "#D8F3DC"
             else:
                 durum_metni = "✅ KASA TAM (0.00 ₺)"
                 renk_kodu = "#FFFFFF"
@@ -568,12 +582,12 @@ if st.session_state.active_tab == "HESAP":
             foto_url = get_github_avatar(p_name)
             fallback_url = f"https://api.dicebear.com/7.x/avataaars/svg?seed={p_name.replace(' ', '')}"
 
-            bg_style = "background: rgba(46, 125, 50, 0.35); border: 1px solid #2E7D32;" if current_islem else "background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08);"
+            bg_style = "background: rgba(46, 125, 50, 0.35); border: 1px solid #2E7D32;" if current_islem else "background: linear-gradient(135deg, #FF7B00 0%, #FF5400 100%); border: 1px solid #FFA200; box-shadow: 0 4px 8px rgba(255, 123, 0, 0.2);"
             
             st.markdown(f"""
             <div style="{bg_style} border-radius: 12px; padding: 12px 15px; margin-bottom: 10px;">
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-                    <img src="{foto_url}" width="40" height="40" style="border-radius: 50%; object-fit: cover; border: 2px solid #F57C00; background: #fff;" onerror="this.onerror=null; this.src='{fallback_url}';" />
+                    <img src="{foto_url}" width="40" height="40" style="border-radius: 50%; object-fit: cover; border: 2px solid #00B4D8; background: #fff;" onerror="this.onerror=null; this.src='{fallback_url}';" />
                     <span style="font-weight: bold; font-size: 16px; color: #FFFFFF;">{p_name}</span>
                 </div>
             </div>
@@ -600,7 +614,7 @@ if st.session_state.active_tab == "HESAP":
             with c5:
                 new_islem = st.checkbox("Tamam", value=current_islem, key=f"islem_{idx}")
 
-            st.markdown("<hr style='margin: 5px 0 15px 0; border: none; border-top: 1px solid rgba(255,255,255,0.05);'>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin: 5px 0 15px 0; border: none; border-top: 1px solid rgba(255,255,255,0.2);'>", unsafe_allow_html=True)
 
             updated_rows.append({
                 "Personel Adı": p_name,
