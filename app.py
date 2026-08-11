@@ -136,7 +136,7 @@ MUSTERI_PERSONEL_MAP = {
 }
 
 # ==========================================
-# CSS VE YENİ TEMA KODLARI (3D Butonlar, Lacivert Arka Plan, Canlı Turuncu Satırlar, Canlı Mavi Butonlar)
+# CSS VE YENİ TEMA KODLARI
 # ==========================================
 custom_css = """
 <style>
@@ -469,10 +469,12 @@ with st.sidebar:
     
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     
+    # BEYAZ 3D KART VE MAVİ İSİM VURGULU AKTİF KULLANICI ALANI
     st.markdown(f"""
-    <div class="notranslate" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
-        <small style="color: #00B4D8;">Aktif Kullanıcı:</small><br>
-        <strong>{KULLANICI_ISIM}</strong> ({KULLANICI_GOREV})
+    <div class="notranslate" style="background: #FFFFFF; border-radius: 12px; padding: 12px; margin-bottom: 15px; border: 1px solid #E0E0E0; box-shadow: 0 6px 0 #B0B0B0, 0 8px 12px rgba(0,0,0,0.2);">
+        <small style="color: #666666; font-weight: 600;">Aktif Kullanıcı:</small><br>
+        <strong style="color: #0077B6; font-size: 15px;">{KULLANICI_ISIM}</strong><br>
+        <span style="color: #444444; font-size: 13px;">({KULLANICI_GOREV})</span>
     </div>
     """, unsafe_allow_html=True)
 
