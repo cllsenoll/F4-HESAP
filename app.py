@@ -479,7 +479,7 @@ with st.sidebar:
     
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     
-    # TURUNCU GELİŞTİRİCİ KARTI (BEYAZ YAZILAR)
+    # TURUNCU KART, BEYAZ YAZILAR (Geliştirici Alanı)
     st.markdown(f"""
     <div class="notranslate" style="background: linear-gradient(135deg, #FF7B00 0%, #FF5400 100%); border-radius: 12px; padding: 12px; margin-bottom: 15px; border: 1px solid #FFA200; box-shadow: 0 6px 0 #9E2A2B, 0 8px 12px rgba(0,0,0,0.3);">
         <small style="color: #FFFFFF; font-weight: 600;">Geliştirici:</small><br>
@@ -701,5 +701,15 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
         if not display_f4_df.empty:
             toplam_secilen_borc = display_f4_df["Fatura Borcu"].sum()
             st.metric(label=f"{selected_f4_personel} - Toplam Fatura Borcu / Tahsilat Hedefi", value=f"{toplam_secilen_borc:,.2f} ₺")
+            
+            # Seçili Personele Göre Yazdırma / İndirme Butonu
+            csv_data = display_f4_df.to_csv(index=False).encode('utf-8-sig')
+            st.download_button(
+                label=f"🖨️ {selected_f4_personel} Listesini Yazdır (Excel/CSV İndir)",
+                data=csv_data,
+                file_name=f"{selected_f4_personel}_F4_Listesi.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
     else:
         st.info("💡 Lütfen sol taraftan **F4 / Ödeme Listesi** dosyanızı yükleyin.")
