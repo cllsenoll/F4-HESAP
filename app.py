@@ -3,6 +3,7 @@ import pandas as pd
 import io
 import re
 import urllib.parse
+import streamlit.components.v1 as components
 
 # 1. SAYFA YAPILANDIRMASI
 st.set_page_config(
@@ -156,7 +157,6 @@ custom_css = """
         border-right: 1px solid rgba(255, 255, 255, 0.08);
     }
     
-    /* 3D Görünümlü Canlı Mavi Butonlar */
     [data-testid="stSidebar"] div.stButton > button, div.stButton > button {
         width: 100% !important;
         height: 48px !important;
@@ -182,7 +182,6 @@ custom_css = """
         transform: translateY(6px);
     }
 
-    /* UPLOAD (Dosya Yükleme) Butonu Sarı Tasarımı */
     [data-testid="stFileUploader"] section {
         background: linear-gradient(135deg, #FFD166 0%, #FFB703) !important;
         border: 2px dashed #FB8500 !important;
@@ -244,7 +243,7 @@ def parse_turkish_float(val):
         return 0.0
 
 # ==========================================
-# GÜÇLÜ DOSYA OKUMA MOTORU (UnicodeDecodeError Çözümü)
+# GÜÇLÜ DOSYA OKUMA MOTORU
 # ==========================================
 def smart_read_file(uploaded_file):
     file_bytes = uploaded_file.getvalue()
@@ -398,7 +397,7 @@ def process_personnel_account_data(df):
     return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
 
 # ==========================================
-# F4 ÖDEME LİSTESİ İŞLEME MOTORU (TAM İŞLEVSEL)
+# F4 ÖDEME LİSTESİ İŞLEME MOTORU
 # ==========================================
 def process_f4_payment_data(df):
     df.columns = df.columns.astype(str).str.strip()
@@ -660,7 +659,7 @@ if st.session_state.active_tab == "HESAP":
         st.info("💡 Lütfen sol taraftan **Personel Hesap Alımı Ekranı** dosyanızı yükleyin.")
 
 # ==========================================
-# TAB 2: F4 ÖDEME LİSTESİ
+# TAB 2: F4 ÖDEME LİSTESİ (DOĞRUDAN PDF ÇIKTISI)
 # ==========================================
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.title("📋 F4 Ödeme ve Personel Tahsilat Listesi")
@@ -702,14 +701,48 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             toplam_secilen_borc = display_f4_df["Fatura Borcu"].sum()
             st.metric(label=f"{selected_f4_personel} - Toplam Fatura Borcu / Tahsilat Hedefi", value=f"{toplam_secilen_borc:,.2f} ₺")
             
-            # Seçili Personele Göre Yazdırma / İndirme Butonu
-            csv_data = display_f4_df.to_csv(index=False).encode('utf-8-sig')
-            st.download_button(
-                label=f"🖨️ {selected_f4_personel} Listesini Yazdır (Excel/CSV İndir)",
-                data=csv_data,
-                file_name=f"{selected_f4_personel}_F4_Listesi.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
+            st.markdown("### 🖨️ PDF Çıktısı Al / Yazdır")
+            
+            # HTML Tablo formatı ve otomatik yazdırma tetikleyicisi
+            html_table = display_f4_df.to_html(index=False, classes='styled-table')
+            print_html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <style>
+                    body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; padding: 15px; background: #fff; }}
+                    h3 {{ color: #0B192C; border-bottom: 2px solid #FF7B00; padding-bottom: 5px; margin-top: 0; }}
+                    .info {{ margin-bottom: 15px; font-size: 14px; }}
+                    table.styled-table {{ width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }}
+                    table.styled-table th, table.styled-table td {{ border: 1px solid #ddd; padding: 8px 12px; text-align: left; }}
+                    table.styled-table th {{ background-color: #0B192C; color: white; }}
+                    table.styled-table tr:nth-child(even) {{ background-color: #f9f9f9; }}
+                    .print-btn {{
+                        background: linear-gradient(135deg, #FF7B00 0%, #FF5400 100%);
+                        color: white; border: none; padding: 12px 24px; font-size: 15px;
+                        font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: 20px;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+                    }}
+                    .print-btn:hover {{ background: linear-gradient(135deg, #FF5400 0%, #D94800 100%); }}
+                    @media print {{
+                        .print-btn {{ display: none; }}
+                        body {{ padding: 0; }}
+                    }}
+                </style>
+            </head>
+            <body>
+                <h3>Görükle Acente KOYS - F4 Tahsilat Listesi</h3>
+                <div class="info">
+                    <p><strong>Sorumlu Personel:</strong> {selected_f4_personel}</p>
+                    <p><strong>Toplam Kayıt:</strong> {len(display_f4_df)} | <strong>Toplam Hedef:</strong> {toplam_secilen_borc:,.2f} ₺</p>
+                </div>
+                {html_table}
+                <br>
+                <button class="print-btn" onclick="window.print()">🖨️ PDF Olarak Yazdır / Kaydet</button>
+            </body>
+            </html>
+            """
+            components.html(print_html, height=380, scrolling=True)
     else:
         st.info("💡 Lütfen sol taraftan **F4 / Ödeme Listesi** dosyanızı yükleyin.")
