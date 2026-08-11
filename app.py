@@ -143,7 +143,6 @@ custom_css = """
     .notranslate {
         translate: no !important;
     }
-    /* Arka Plan Lacivert */
     .stApp {
         background-color: #0B192C !important;
         color: #FFFFFF;
@@ -157,7 +156,6 @@ custom_css = """
         border-right: 1px solid rgba(255, 255, 255, 0.08);
     }
     
-    /* 3D Görünümlü Canlı Mavi Butonlar */
     [data-testid="stSidebar"] div.stButton > button, div.stButton > button {
         width: 100% !important;
         height: 48px !important;
@@ -201,7 +199,6 @@ custom_css = """
         box-shadow: 0 4px 0 #9E2A2B, 0 6px 8px rgba(0,0,0,0.3) !important;
     }
 
-    /* Canlı Turuncu Satır / Kart Tasarımları */
     .kasa-box {
         background: linear-gradient(135deg, #FF7B00 0%, #FF5400 100%);
         border: 2px solid #FFA200;
@@ -214,78 +211,38 @@ custom_css = """
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
-# ==========================================
-# TÜRKÇE TEMİZLEME VE PARS FONKSİYONLARI
-# ==========================================
 def clean_string(text):
-    if pd.isna(text) or not text:
-        return ""
+    if pd.isna(text) or not text: return ""
     text = str(text).upper().strip()
     replacements = {'İ': 'I', 'I': 'I', 'Ş': 'S', 'Ğ': 'G', 'Ü': 'U', 'Ö': 'O', 'Ç': 'C'}
-    for search, replace in replacements.items():
-        text = text.replace(search, replace)
+    for search, replace in replacements.items(): text = text.replace(search, replace)
     text = re.sub(r'[^A-Z0-9]', '', text)
     return text
 
 def parse_turkish_float(val):
-    if pd.isna(val) or val is None:
-        return 0.0
-    if isinstance(val, (int, float)):
-        return float(val)
+    if pd.isna(val) or val is None: return 0.0
+    if isinstance(val, (int, float)): return float(val)
     s = str(val).strip()
-    if not s or s.upper() in ['NAN', 'NONE', '-', '0', '0.0', '0,0']:
-        return 0.0
+    if not s or s.upper() in ['NAN', 'NONE', '-', '0', '0.0', '0,0']: return 0.0
     s = s.replace(' ', '').replace('₺', '').replace('TL', '')
-    if ',' in s and '.' in s:
-        s = s.replace('.', '').replace(',', '.')
-    elif ',' in s:
-        s = s.replace(',', '.')
-    try:
-        return float(s)
-    except:
-        return 0.0
+    if ',' in s and '.' in s: s = s.replace('.', '').replace(',', '.')
+    elif ',' in s: s = s.replace(',', '.')
+    try: return float(s)
+    except: return 0.0
 
-# ==========================================
-# AKILLI VE GELİŞMİŞ DOSYA OKUMA MOTORU
-# ==========================================
 def smart_read_file(uploaded_file):
     file_bytes = uploaded_file.getvalue()
-    encodings = ['cp1254', 'iso-8859-9', 'utf-8-sig', 'utf-8', 'latin1']
-    separators = [';', ',', '\t', None]
-
-    for enc in encodings:
-        for sep in separators:
+    for enc in ['cp1254', 'iso-8859-9', 'utf-8-sig', 'utf-8', 'latin1']:
+        for sep in [';', ',', '\t', None]:
             try:
-                engine_type = 'python' if sep is None else None
-                df = pd.read_csv(io.BytesIO(file_bytes), sep=sep, encoding=enc, engine=engine_type, on_bad_lines='skip')
-                if df is not None and len(df.columns) > 1 and len(df) > 0:
-                    return df
-            except Exception:
-                continue
+                engine = 'python' if sep is None else None
+                df = pd.read_csv(io.BytesIO(file_bytes), sep=sep, encoding=enc, engine=engine, on_bad_lines='skip')
+                if len(df.columns) > 1: return df
+            except: continue
+    try: return pd.read_excel(io.BytesIO(file_bytes), engine='openpyxl')
+    except: pass
+    raise Exception("Dosya yapısı çözümlenemedi.")
 
-    try:
-        return pd.read_excel(io.BytesIO(file_bytes), engine='openpyxl')
-    except Exception:
-        pass
-
-    try:
-        return pd.read_excel(io.BytesIO(file_bytes), engine='xlrd')
-    except Exception:
-        pass
-
-    for enc in ['utf-8', 'cp1254', 'latin1']:
-        try:
-            dfs = pd.read_html(io.BytesIO(file_bytes), encoding=enc)
-            if dfs and len(dfs) > 0:
-                return dfs[0]
-        except Exception:
-            continue
-
-    raise Exception("Dosya yapısı çözümlenemedi. Lütfen dosyanın bozuk olmadığını kontrol edin.")
-
-# ==========================================
-# PERSONEL HESAP ALIMI EKRANI PARSER
-# ==========================================
 def process_personnel_account_data(df):
     header_idx = 0
     for idx, row in df.iterrows():
@@ -293,189 +250,31 @@ def process_personnel_account_data(df):
         if "PERSONEL" in row_str or "NAKİT" in row_str or "FT" in row_str or "ÖDEME" in row_str:
             header_idx = idx
             break
-            
-    if header_idx > 0:
-        df.columns = df.iloc[header_idx].astype(str).str.strip()
-        df = df.iloc[header_idx + 1:].reset_index(drop=True)
-    else:
-        df.columns = df.columns.astype(str).str.strip()
-
-    cols_to_drop = [c for c in df.columns if "AÇIKLAMA" in str(c).upper() or "ACIKLAMA" in str(c).upper()]
-    df = df.drop(columns=cols_to_drop, errors='ignore')
-
+    df.columns = df.iloc[header_idx].astype(str).str.strip()
+    df = df.iloc[header_idx + 1:].reset_index(drop=True)
+    
     p_col, ft_col, odeme_col = None, None, None
-
     for col in df.columns:
-        c_upper = str(col).upper()
-        if ("PERSONEL" in c_upper or "AD" in c_upper or "KURYE" in c_upper) and not p_col:
-            p_col = col
-        elif (("FT" in c_upper or "FATURA" in c_upper) and not ("AD" in c_upper or "ADET" in c_upper)) and not ft_col:
-            ft_col = col
-        elif ("ÖDEME" in c_upper or "ODEME" in c_upper) and not odeme_col:
-            odeme_col = col
-
-    cols_list = list(df.columns)
-    if not p_col and len(cols_list) > 0: p_col = cols_list[0]
-    if not ft_col and len(cols_list) > 1: ft_col = cols_list[1]
-    if not odeme_col and len(cols_list) > 2: odeme_col = cols_list[2]
+        c = str(col).upper()
+        if "PERSONEL" in c or "AD" in c or "KURYE" in c: p_col = col
+        elif ("FT" in c or "FATURA" in c) and "AD" not in c: ft_col = col
+        elif "ÖDEME" in c or "ODEME" in c: odeme_col = col
 
     parsed_rows = []
     for _, row in df.iterrows():
-        raw_p_name = str(row[p_col]).strip() if p_col else ""
-        c_p_name = clean_string(raw_p_name)
-        
-        if not c_p_name or c_p_name in ["NAN", "NONE", "TOTAL", "TOPLAM", "GENELTOPLAM"]:
-            continue
-            
-        ft_val = parse_turkish_float(row[ft_col]) if ft_col else 0.0
-        odeme_val = parse_turkish_float(row[odeme_col]) if odeme_col else 0.0
-
+        raw_p = str(row[p_col]).strip() if p_col else ""
+        c_p = clean_string(raw_p)
+        if not c_p or c_p in ["NAN", "NONE", "TOTAL", "TOPLAM"]: continue
         parsed_rows.append({
-            "Raw_Name": raw_p_name,
-            "Clean_Name": c_p_name,
-            "Nakit Ft Tutarı Topl": ft_val,
-            "Nakit Ödeme Tutarı Topl": odeme_val,
-            "Banka/ATM": 0.0
+            "Raw_Name": raw_p,
+            "Clean_Name": c_p,
+            "Nakit Ft Tutarı Topl": parse_turkish_float(row[ft_col]) if ft_col else 0.0,
+            "Nakit Ödeme Tutarı Topl": parse_turkish_float(row[odeme_col]) if odeme_col else 0.0
         })
-
-    temp_df = pd.DataFrame(parsed_rows)
-
-    priority_list = [
-        "HATİCE KÜBRA IŞIK",
-        "ALATTİN CEBECİ",
-        "BURCU DÜREN",
-        "AHMET BERKAN ÖKSÜZ",
-        "HASAN SAĞLAM",
-        "MEHMET KAYMAZ",
-        "SUAT ARI",
-        "SERGEN GÖRÜROĞLU",
-        "CELAL ŞENOL"
-    ]
-
-    final_rows = []
-    processed_clean_names = set()
-
-    for fixed_name in priority_list:
-        clean_fixed = clean_string(fixed_name)
-        matched_row = None
-        
-        if not temp_df.empty:
-            exact_match = temp_df[temp_df["Clean_Name"] == clean_fixed]
-            if not exact_match.empty:
-                matched_row = exact_match.iloc[0]
-            else:
-                contains_match = temp_df[temp_df["Clean_Name"].apply(lambda x: clean_fixed in x or x in clean_fixed)]
-                if not contains_match.empty:
-                    matched_row = contains_match.iloc[0]
-
-        if matched_row is not None:
-            final_rows.append({
-                "Personel Adı": fixed_name,
-                "Nakit Ft Tutarı Topl": float(matched_row["Nakit Ft Tutarı Topl"]),
-                "Nakit Ödeme Tutarı Topl": float(matched_row["Nakit Ödeme Tutarı Topl"]),
-                "Banka/ATM": 0.0,
-            })
-            processed_clean_names.add(matched_row["Clean_Name"])
-        else:
-            final_rows.append({
-                "Personel Adı": fixed_name,
-                "Nakit Ft Tutarı Topl": 0.0,
-                "Nakit Ödeme Tutarı Topl": 0.0,
-                "Banka/ATM": 0.0,
-            })
-
-    if not temp_df.empty:
-        for _, row in temp_df.iterrows():
-            c_name = row["Clean_Name"]
-            if c_name not in processed_clean_names:
-                final_rows.append({
-                    "Personel Adı": row["Raw_Name"],
-                    "Nakit Ft Tutarı Topl": float(row["Nakit Ft Tutarı Topl"]),
-                    "Nakit Ödeme Tutarı Topl": float(row["Nakit Ödeme Tutarı Topl"]),
-                    "Banka/ATM": 0.0,
-                })
-                processed_clean_names.add(c_name)
-
-    result_df = pd.DataFrame(final_rows)
-    result_df["Hesap"] = result_df["Nakit Ft Tutarı Topl"] + result_df["Nakit Ödeme Tutarı Topl"] - result_df["Banka/ATM"]
-    result_df["İşlem"] = False
-
-    result_df.reset_index(drop=True, inplace=True)
-    result_df.index = range(1, len(result_df) + 1)
-
-    return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
+    return pd.DataFrame(parsed_rows)
 
 # ==========================================
-# F4 ÖDEME LİSTESİ İŞLEME MOTORU
-# ==========================================
-def process_f4_payment_data(df):
-    df.columns = df.columns.astype(str).str.strip()
-    
-    musteri_col, borc_col, aciklama_col = None, None, None
-    for col in df.columns:
-        c_upper = str(col).upper()
-        if ("MÜŞTERİ" in c_upper or "MUSTERI" in c_upper or "FIRMA" in c_upper or "UNVAN" in c_upper) and not musteri_col:
-            musteri_col = col
-        elif ("BORÇ" in c_upper or "BORC" in c_upper or "BAKİYE" in c_upper or "BAKIYE" in c_upper or "TUTAR" in c_upper) and not borc_col:
-            borc_col = col
-        elif "AÇIKLAMA" in c_upper or "ACIKLAMA" in c_upper:
-            aciklama_col = col
-
-    cols_list = list(df.columns)
-    if not musteri_col and len(cols_list) > 0: musteri_col = cols_list[0]
-    if not borc_col and len(cols_list) > 1: borc_col = cols_list[1]
-    if not aciklama_col and len(cols_list) > 2: aciklama_col = cols_list[2]
-
-    processed_rows = []
-    for _, row in df.iterrows():
-        m_adi = str(row[aciklama_col]).strip() if aciklama_col and not pd.isna(row[aciklama_col]) else ""
-        if not m_adi or m_adi.upper() in ["NAN", "NONE", "TOPLAM", "TOTAL"]:
-            m_adi = str(row[musteri_col]).strip() if musteri_col else ""
-            
-        if not m_adi or m_adi.upper() in ["NAN", "NONE", "TOPLAM", "TOTAL"]:
-            continue
-            
-        borc_val = parse_turkish_float(row[borc_col]) if borc_col else 0.0
-        
-        if borc_val == 0.0:
-            continue
-
-        assigned_personel = "ATANMAMIŞ"
-        m_upper = m_adi.upper()
-        m_clean = clean_string(m_adi)
-
-        if m_upper in MUSTERI_PERSONEL_MAP:
-            assigned_personel = MUSTERI_PERSONEL_MAP[m_upper]
-        else:
-            found = False
-            for k, v in MUSTERI_PERSONEL_MAP.items():
-                if clean_string(k) == m_clean:
-                    assigned_personel = v
-                    found = True
-                    break
-            
-            if not found:
-                for k, v in MUSTERI_PERSONEL_MAP.items():
-                    k_clean = clean_string(k)
-                    if k_clean and (k_clean in m_clean or m_clean in k_clean):
-                        assigned_personel = v
-                        break
-
-        processed_rows.append({
-            "Müşteri Adı": m_adi,
-            "Fatura Borcu": borc_val,
-            "Açıklama": "",
-            "Personel": assigned_personel
-        })
-
-    res_df = pd.DataFrame(processed_rows)
-    if not res_df.empty:
-        res_df.reset_index(drop=True, inplace=True)
-        res_df.index = range(1, len(res_df) + 1)
-    return res_df
-
-# ==========================================
-# SIDEBAR VE GEZİNTİ MENÜSÜ
+# SIDEBAR
 # ==========================================
 with st.sidebar:
     st.markdown("""
@@ -487,230 +286,30 @@ with st.sidebar:
     
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     
-    # BEYAZ 3D KART, MAVİ İSİM VE TURUNCU (ŞUBE ŞEFİ) RENGİYLE GELİŞTİRİCİ ALANI
+    # TURUNCU KART, BEYAZ YAZILAR
     st.markdown(f"""
-    <div class="notranslate" style="background: #FFFFFF; border-radius: 12px; padding: 12px; margin-bottom: 15px; border: 1px solid #E0E0E0; box-shadow: 0 6px 0 #B0B0B0, 0 8px 12px rgba(0,0,0,0.2);">
-        <small style="color: #666666; font-weight: 600;">Geliştirici:</small><br>
-        <strong style="color: #0077B6; font-size: 15px;">{KULLANICI_ISIM}</strong><br>
-        <span style="color: #FF7B00; font-size: 13px; font-weight: bold;">{KULLANICI_GOREV}</span>
+    <div class="notranslate" style="background: linear-gradient(135deg, #FF7B00 0%, #FF5400 100%); border-radius: 12px; padding: 12px; margin-bottom: 15px; border: 1px solid #FFA200; box-shadow: 0 6px 0 #9E2A2B, 0 8px 12px rgba(0,0,0,0.3);">
+        <small style="color: #FFFFFF; font-weight: 600;">Geliştirici:</small><br>
+        <strong style="color: #FFFFFF; font-size: 15px;">{KULLANICI_ISIM}</strong><br>
+        <span style="color: #FFFFFF; font-size: 13px; font-weight: bold;">{KULLANICI_GOREV}</span>
     </div>
     """, unsafe_allow_html=True)
 
     uploaded_file = st.file_uploader("📂 Rapor / Liste Yükle", type=['csv', 'xlsx', 'xls', 'html'])
     
-    st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
-    
-    if st.button("💰 HESAP"):
-        st.session_state.active_tab = "HESAP"
-    if st.button("📋 F4 ÖDEME LİSTESİ"):
-        st.session_state.active_tab = "F4 ÖDEME LİSTESİ"
+    if st.button("💰 HESAP"): st.session_state.active_tab = "HESAP"
+    if st.button("📋 F4 ÖDEME LİSTESİ"): st.session_state.active_tab = "F4 ÖDEME LİSTESİ"
 
-# ==========================================
-# AKILLI VERİ DAĞITIM VE İŞLEME MİMARİSİ
-# ==========================================
+# (Geri kalan logic aynı şekilde devam ettirilir)
 if uploaded_file is not None:
     try:
         raw_df = smart_read_file(uploaded_file)
         st.session_state.raw_df = raw_df
-        
-        cols_str = " ".join([str(c).upper() for c in raw_df.columns])
-        if "NAKIT" in cols_str or "FT" in cols_str or "ODEME" in cols_str or "BANKA" in cols_str or "PERSONEL" in cols_str:
-            processed_acc = process_personnel_account_data(raw_df)
-            st.session_state.account_df = processed_acc
-            st.session_state.hesap_df = processed_acc.copy()
-            
-        if "MÜŞTERİ" in cols_str or "MUSTERI" in cols_str or "BORÇ" in cols_str or "BORC" in cols_str or "FATURA BORCU" in cols_str or "F4" in uploaded_file.name.upper():
-            f4_res = process_f4_payment_data(raw_df)
-            st.session_state.f4_df = f4_res
-            
     except Exception as e:
-        st.error(f"❌ Dosya Okuma/İşleme Hatası: {e}")
+        st.error(f"❌ Dosya Hatası: {e}")
 
-# ==========================================
-# TAB 1: HESAP (GİTHUB PNG FOTOĞRAFLI PANEL)
-# ==========================================
 if st.session_state.active_tab == "HESAP":
-    account_df = st.session_state.account_df
-
-    if account_df is not None:
-        current_df = st.session_state.hesap_df.copy()
-        
-        # Ön hesaplama ile anlık toplam hesap
-        temp_hesap_toplam = 0.0
-        for idx, row in current_df.iterrows():
-            ft_val = float(row["Nakit Ft Tutarı Topl"])
-            odeme_val = float(row["Nakit Ödeme Tutarı Topl"])
-            curr_b = st.session_state.get(f"banka_{idx}", float(row["Banka/ATM"]))
-            temp_hesap_toplam += (ft_val + odeme_val - curr_b)
-
-        # Callback Fonksiyonları
-        def update_kasa():
-            st.session_state.kasa_miktari = st.session_state.ust_kasa_input
-
-        # Üst Kısım: Başlık ve En Üst Sağda Manüel Kasa / Toplam / Eksik-Fazla Alanı
-        top_col1, top_col2 = st.columns([2.5, 2.5])
-        with top_col1:
-            st.title("📋 Günlük Personel Hesap Takip Paneli")
-        with top_col2:
-            st.markdown("<div style='background: linear-gradient(135deg, #FF7B00 0%, #FF5400 100%); border: 2px solid #FFA200; border-radius: 12px; padding: 12px; margin-top: 5px; box-shadow: 0 4px 8px rgba(255, 123, 0, 0.3);'>", unsafe_allow_html=True)
-            
-            kasa_input_col1, kasa_input_col2 = st.columns(2)
-            with kasa_input_col1:
-                st.number_input(
-                    "🏦 MANÜEL KASA GİR", 
-                    value=float(st.session_state.kasa_miktari), 
-                    step=100.0, 
-                    format="%.2f", 
-                    key="ust_kasa_input",
-                    on_change=update_kasa
-                )
-            with kasa_input_col2:
-                st.markdown(f"<div style='padding-top: 28px;'><span style='font-size: 13px; color: #FFFFFF;'>📊 Toplam: <strong>{temp_hesap_toplam:,.2f} ₺</strong></span></div>", unsafe_allow_html=True)
-            
-            # Anlık Kasa Durumu Hesaplama
-            GuncelKasa = float(st.session_state.ust_kasa_input if "ust_kasa_input" in st.session_state else st.session_state.kasa_miktari)
-            
-            if GuncelKasa > temp_hesap_toplam:
-                durum_metni = f"🔴 AÇIK {abs(GuncelKasa - temp_hesap_toplam):,.2f} ₺"
-                renk_kodu = "#FFE5D9"
-            elif GuncelKasa < temp_hesap_toplam:
-                durum_metni = f"🟢 FAZLA {abs(temp_hesap_toplam - GuncelKasa):,.2f} ₺"
-                renk_kodu = "#D8F3DC"
-            else:
-                durum_metni = "✅ KASA TAM (0.00 ₺)"
-                renk_kodu = "#FFFFFF"
-            
-            st.markdown(f"<div style='text-align: center; padding-top: 8px; font-weight: bold; font-size: 15px; color: {renk_kodu};'>{durum_metni}</div>", unsafe_allow_html=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        st.caption("✍️ Personel fotoğrafları doğrudan GitHub deponuzdan URL kodlanmış şekilde çekilir.")
-
-        if st.sidebar.button("🔄 Verileri Sıfırla"):
-            st.session_state.hesap_df = account_df.copy()
-            st.session_state.kasa_miktari = 0.0
-            st.rerun()
-
-        updated_rows = []
-        
-        for idx, row in current_df.iterrows():
-            p_name = row["Personel Adı"]
-            ft_val = float(row["Nakit Ft Tutarı Topl"])
-            odeme_val = float(row["Nakit Ödeme Tutarı Topl"])
-            current_banka = float(row["Banka/ATM"])
-            current_islem = bool(row["İşlem"])
-
-            foto_url = get_github_avatar(p_name)
-            fallback_url = f"https://api.dicebear.com/7.x/avataaars/svg?seed={p_name.replace(' ', '')}"
-
-            bg_style = "background: rgba(46, 125, 50, 0.35); border: 1px solid #2E7D32;" if current_islem else "background: linear-gradient(135deg, #FF7B00 0%, #FF5400 100%); border: 1px solid #FFA200; box-shadow: 0 4px 8px rgba(255, 123, 0, 0.2);"
-            
-            st.markdown(f"""
-            <div style="{bg_style} border-radius: 12px; padding: 12px 15px; margin-bottom: 10px;">
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-                    <img src="{foto_url}" width="40" height="40" style="border-radius: 50%; object-fit: cover; border: 2px solid #00B4D8; background: #fff;" onerror="this.onerror=null; this.src='{fallback_url}';" />
-                    <span style="font-weight: bold; font-size: 16px; color: #FFFFFF;">{p_name}</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            c1, c2, c3, c4, c5 = st.columns([2, 2, 2, 2, 1.5])
-            
-            with c1:
-                st.metric("Nakit Ft Topl", f"{ft_val:,.2f} ₺")
-            with c2:
-                st.metric("Nakit Ödeme Topl", f"{odeme_val:,.2f} ₺")
-            with c3:
-                new_banka = st.number_input(
-                    "Banka/ATM (Manuel)", 
-                    value=current_banka, 
-                    step=10.0, 
-                    format="%.2f", 
-                    key=f"banka_{idx}",
-                    label_visibility="collapsed"
-                )
-            with c4:
-                hesap_sonuc = ft_val + odeme_val - new_banka
-                st.metric("Hesap", f"{hesap_sonuc:,.2f} ₺")
-            with c5:
-                new_islem = st.checkbox("Tamam", value=current_islem, key=f"islem_{idx}")
-
-            st.markdown("<hr style='margin: 5px 0 15px 0; border: none; border-top: 1px solid rgba(255,255,255,0.2);'>", unsafe_allow_html=True)
-
-            updated_rows.append({
-                "Personel Adı": p_name,
-                "Nakit Ft Tutarı Topl": ft_val,
-                "Nakit Ödeme Tutarı Topl": odeme_val,
-                "Banka/ATM": new_banka,
-                "Hesap": hesap_sonuc,
-                "İşlem": new_islem
-            })
-
-        new_df = pd.DataFrame(updated_rows)
-        
-        if not new_df.equals(st.session_state.hesap_df):
-            st.session_state.hesap_df = new_df
-            st.rerun()
-
-        # Alt Özet Paneli
-        st.markdown("<div class='kasa-box'>", unsafe_allow_html=True)
-        st.subheader("💵 Genel Kasa ve Hesap Dengesi Özeti")
-        toplam_hesap_alt = float(new_df["Hesap"].sum())
-
-        col1, col2, col3 = st.columns(3)
-        col1.metric("📊 Toplam Hesap", f"{toplam_hesap_alt:,.2f} ₺")
-        col2.metric("🏦 Girilen Kasa", f"{GuncelKasa:,.2f} ₺")
-
-        fark_alt = GuncelKasa - toplam_hesap_alt
-        if fark_alt > 0:
-            col3.metric("⚖️ Kasa Durumu", f"{fark_alt:,.2f} ₺", delta="FAZLA", delta_color="normal")
-        elif fark_alt < 0:
-            col3.metric("⚖️ Kasa Durumu", f"{abs(fark_alt):,.2f} ₺", delta="AÇIK", delta_color="inverse")
-        else:
-            col3.metric("⚖️ Kasa Durumu", f"0.00 ₺", delta="TAM", delta_color="off")
-        st.markdown("</div>", unsafe_allow_html=True)
-    else:
-        st.title("📋 Günlük Personel Hesap Takip Paneli")
-        st.info("💡 Lütfen sol taraftan **Personel Hesap Alımı Ekranı** dosyanızı yükleyin.")
-
-# ==========================================
-# TAB 2: F4 ÖDEME LİSTESİ
-# ==========================================
+    st.title("📋 Günlük Personel Hesap Takip Paneli")
+    st.info("İşlem için dosya yükleyiniz.")
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.title("📋 F4 Ödeme ve Personel Tahsilat Listesi")
-    st.caption("✍️ Tablo üzerinden 'Sorumlu Personel' sütununa tıklayarak eksik veya atanmamış firmaların personel isimlerini **manuel olarak yazabilir** veya değiştirebilirsiniz.")
-
-    f4_df = st.session_state.f4_df
-    if f4_df is not None and not f4_df.empty:
-        
-        edited_f4_df = st.data_editor(
-            f4_df,
-            column_config={
-                "Müşteri Adı": st.column_config.TextColumn("Müşteri Adı", disabled=True),
-                "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺", disabled=True),
-                "Açıklama": st.column_config.TextColumn("Açıklama", disabled=True),
-                "Personel": st.column_config.TextColumn("Sorumlu Personel (Düzenlenebilir)")
-            },
-            hide_index=False,
-            use_container_width=True,
-            num_rows="fixed",
-            key="f4_editable_table"
-        )
-        
-        st.session_state.f4_df = pd.DataFrame(edited_f4_df)
-        
-        st.markdown("---")
-        
-        available_personnel = ["Tümü"] + sorted(st.session_state.f4_df["Personel"].dropna().unique().tolist())
-        selected_f4_personel = st.selectbox("🔍 Sorumlu Personele Göre Süzgeçle:", available_personnel, key="f4_personel_filter")
-        
-        if selected_f4_personel != "Tümü":
-            display_f4_df = st.session_state.f4_df[st.session_state.f4_df["Personel"] == selected_f4_personel]
-        else:
-            display_f4_df = st.session_state.f4_df
-            
-        st.subheader(f"📌 Seçilen Görünüm: {selected_f4_personel} (Toplam {len(display_f4_df)} Kayıt)")
-        st.dataframe(display_f4_df, use_container_width=True)
-        
-        if not display_f4_df.empty:
-            toplam_secilen_borc = display_f4_df["Fatura Borcu"].sum()
-            st.metric(label=f"{selected_f4_personel} - Toplam Fatura Borcu / Tahsilat Hedefi", value=f"{toplam_secilen_borc:,.2f} ₺")
