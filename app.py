@@ -11,7 +11,6 @@ from reportlab.lib import colors
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-# Türkçe karakter desteği için DejaVu Sans fontunu kaydedelim (ReportLab dahili unicode fontu)
 try:
     pdfmetrics.registerFont(TTFont('DejaVuSans', 'DejaVuSans.ttf'))
     pdfmetrics.registerFont(TTFont('DejaVuSans-Bold', 'DejaVuSans-Bold.ttf'))
@@ -97,7 +96,7 @@ MUSTERI_PERSONEL_MAP = {
     "ORCA HOME TEKSTİL İTHALAT İHRACATSANAYİ VE TİCARET LİMİTED ŞİRKETİ": "BURCU DÜREN",
     "OTEKSO MÜHENDİSLİK TASARIM MAKİNE SANAYİ VE TİCARET ANONİM ŞİRKETİ": "BURCU DÜREN",
     "PROLİFT ASANSÖR SANAYİ VE TİCARET ANONİM ŞİRKETİ": "BURCU DÜREN",
-    "S.S.MARMARA ZEYTİN TARIM SAT.KOOP.BİR.MARMARABİRKİK": "BURCU DÜREN",
+    "S.S.MARMARA ZEYTİN TARIM SAT.KOOP.BİR.MARMARABİRLİK": "BURCU DÜREN",
     "T-BİYOTEKNOLOJİ LABORATUVAR ESTETİK MEDİKAL KOZMETİK SANAYİVE TİCARET LTD.ŞTİ.": "BURCU DÜREN",
     "UĞURLU FİNİSAJ SİSTEMLERİ SANAYİ VE TİCARET ANONİM ŞİRKETİ": "BURCU DÜREN",
     "VARNA DERİ SANAYİ VE TİCARET A.Ş.": "BURCU DÜREN",
@@ -880,7 +879,6 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
                         use_container_width=True
                     )
                     
-                    # PDF İndirme Butonu
                     pdf_bytes = generate_personnel_pdf(p_ad, sub_df)
                     safe_filename = p_ad.replace(" ", "_").replace("İ", "I").replace("Ş", "S").replace("Ğ", "G").replace("Ü", "U").replace("Ö", "O").replace("Ç", "C")
                     st.download_button(
