@@ -403,7 +403,6 @@ def process_f4_payment_data(df):
 
     processed_rows = []
     for _, row in df.iterrows():
-        # Ham müşteri verilerini hem müşteri sütunundan hem açıklama sütunundan güvenli yakala
         m_adi_1 = str(row[musteri_col]).strip() if musteri_col and not pd.isna(row[musteri_col]) else ""
         m_adi_2 = str(row[aciklama_col]).strip() if aciklama_col and not pd.isna(row[aciklama_col]) else ""
         
@@ -421,7 +420,6 @@ def process_f4_payment_data(df):
         m_upper = m_adi.upper()
         m_clean = clean_string(m_adi)
 
-        # Doğrudan eşleşme veya esnek temizlenmiş eşleşme kontrolü
         if m_upper in MUSTERI_PERSONEL_MAP:
             assigned_personel = MUSTERI_PERSONEL_MAP[m_upper]
         else:
@@ -597,7 +595,7 @@ if st.session_state.active_tab == "HESAP":
         st.info("ℹ️ Lütfen sol panelden personel hesap raporunu yükleyin.")
 
 # ==========================================
-# TAB 2: F4 ÖDEME LİSTESİ (SÜZGEÇ DÜZELTİLDİ)
+# TAB 2: F4 ÖDEME LİSTESİ (PERSONEL SEKMELERİ)
 # ==========================================
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.title("📋 F4 Ödeme Listesi - Personel Bazlı Dağılım")
@@ -605,84 +603,86 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     f4_df = st.session_state.get('f4_df', None)
     
     if f4_df is not None and not f4_df.empty:
-        # Sadece veride gerçekten müşterisi bulunan personelleri listele (veya tüm PERSONEL_LISTESI)
-        benzersiz_personeller = [p for p in PERSONEL_LISTESI if p in f4_df["Personel"].unique()]
-        # Eğer sözlükte olmayan ve atanamayan varsa onları da ekle
-        diger_personeller = [p for p in f4_df["Personel"].unique() if p not in benzersiz_personeller]
-        aktif_personeller = benzersiz_personeller + diger_personeller
+        # Tüm ana personel listesini ve veride geçen diğer isimleri kapsayacak şekilde sekmeleri oluşturalım
+        aktif_personeller = [p for p in PERSONEL_LISTESI if p in f4_df["Personel"].values or p == "ATANMAMIŞ"]
+        ekstra_personeller = [p for p in f4_df["Personel"].unique() if p not in aktif_personeller]
+        tum_aktif_liste = aktif_personeller + ekstra_personeller
         
-        tab_list = st.tabs([f"👤 {p}" for p in aktif_personeller])
+        tab_list = st.tabs([f"👤 {p}" for p in tum_aktif_liste])
         
-        for i, personel in enumerate(aktif_personeller):
+        for i, personel in enumerate(tum_aktif_liste):
             with tab_list[i]:
                 personel_df = f4_df[f4_df["Personel"] == personel].copy()
                 
                 st.subheader(f"{personel} - Müşteri Ödeme Listesi")
                 st.markdown(f"Toplam Müşteri/Kayıt: **{len(personel_df)}** | Toplam Borç: **{personel_df['Fatura Borcu'].sum():,.2f} ₺**")
                 
-                st.dataframe(personel_df[["Müşteri Adı", "Fatura Borcu", "Açıklama"]], use_container_width=True)
-                
-                # PDF / Yazdırma HTML Şablonu
-                html_icerik = f"""
-                <html>
-                <head>
-                    <title>{personel} - F4 Ödeme Listesi</title>
-                    <style>
-                        body {{ font-family: Arial, sans-serif; color: #000; padding: 20px; }}
-                        h2 {{ text-align: center; color: #333; }}
-                        table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
-                        th, td {{ border: 1px solid #ccc; padding: 8px 12px; text-align: left; font-size: 14px; }}
-                        th {{ background-color: #f2f2f2; }}
-                        .total {{ font-weight: bold; margin-top: 15px; font-size: 16px; text-align: right; }}
-                    </style>
-                </head>
-                <body>
-                    <h2>Görükle Acente - F4 Ödeme Listesi</h2>
-                    <p><strong>Personel:</strong> {personel}</p>
-                    <p><strong>Tarih:</strong> {pd.Timestamp.now().strftime('%d.%m.%Y')}</p>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Müşteri Adı</th>
-                                <th>Fatura Borcu (₺)</th>
-                                <th>Açıklama</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                """
-                
-                for idx, row in enumerate(personel_df.itertuples(), 1):
-                    html_icerik += f"""
-                            <tr>
-                                <td>{idx}</td>
-                                <td>{row._1}</td>
-                                <td>{row._2:,.2f} ₺</td>
-                                <td>{row._3}</td>
-                            </tr>
+                if not personel_df.empty:
+                    st.dataframe(personel_df[["Müşteri Adı", "Fatura Borcu", "Açıklama"]], use_container_width=True)
+                    
+                    # PDF / Yazdırma HTML Şablonu
+                    html_icerik = f"""
+                    <html>
+                    <head>
+                        <title>{personel} - F4 Ödeme Listesi</title>
+                        <style>
+                            body {{ font-family: Arial, sans-serif; color: #000; padding: 20px; }}
+                            h2 {{ text-align: center; color: #333; }}
+                            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
+                            th, td {{ border: 1px solid #ccc; padding: 8px 12px; text-align: left; font-size: 14px; }}
+                            th {{ background-color: #f2f2f2; }}
+                            .total {{ font-weight: bold; margin-top: 15px; font-size: 16px; text-align: right; }}
+                        </style>
+                    </head>
+                    <body>
+                        <h2>Görükle Acente - F4 Ödeme Listesi</h2>
+                        <p><strong>Personel:</strong> {personel}</p>
+                        <p><strong>Tarih:</strong> {pd.Timestamp.now().strftime('%d.%m.%Y')}</p>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Müşteri Adı</th>
+                                    <th>Fatura Borcu (₺)</th>
+                                    <th>Açıklama</th>
+                                </tr>
+                            </thead>
+                            <tbody>
                     """
-                
-                toplam_tutar = personel_df['Fatura Borcu'].sum()
-                html_icerik += f"""
-                        </tbody>
-                    </table>
-                    <div class="total">Toplam Borç: {toplam_tutar:,.2f} ₺</div>
-                    <script>window.print();</script>
-                </body>
-                </html>
-                """
-                
-                encoded_html = urllib.parse.quote(html_icerik)
-                data_url = f"data:text/html;charset=utf-8,{encoded_html}"
-                
-                col_p1, _ = st.columns([1, 4])
-                with col_p1:
-                    st.markdown(f"""
-                        <a href="{data_url}" target="_blank" style="text-decoration: none;">
-                            <button style="width: 100%; height: 40px; background-color: #00B4D8; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                                🖨️ PDF / Yazdır
-                            </button>
-                        </a>
-                    """, unsafe_allow_html=True)
+                    
+                    for row_idx, row in enumerate(personel_df.itertuples(), 1):
+                        html_icerik += f"""
+                                <tr>
+                                    <td>{row_idx}</td>
+                                    <td>{row.Müşteri_Adı if hasattr(row, 'Müşteri_Adı') else row._1}</td>
+                                    <td>{row.Fatura_Borcu if hasattr(row, 'Fatura_Borcu') else row._2:,.2f} ₺</td>
+                                    <td>{row.Açıklama if hasattr(row, 'Açıklama') else row._3}</td>
+                                </tr>
+                        """
+                    
+                    toplam_tutar = personel_df['Fatura Borcu'].sum()
+                    html_icerik += f"""
+                            </tbody>
+                        </table>
+                        <div class="total">Toplam Borç: {toplam_tutar:,.2f} ₺</div>
+                        <script>window.print();</script>
+                    </body>
+                    </html>
+                    """
+                    
+                    encoded_html = urllib.parse.quote(html_icerik)
+                    data_url = f"data:text/html;charset=utf-8,{encoded_html}"
+                    
+                    col_p1, _ = st.columns([1, 4])
+                    with col_p1:
+                        st.markdown(f"""
+                            <a href="{data_url}" target="_blank" style="text-decoration: none;">
+                                <button style="width: 100%; height: 40px; background-color: #00B4D8; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                                    🖨️ PDF / Yazdır
+                                </button>
+                            </a>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.info(f"ℹ️ {personel} adına atanmış herhangi bir müşteri veya borç kaydı bulunmuyor.")
     else:
         st.info("ℹ️ Lütfen sol panelden F4 Ödeme / Müşteri Borç listesini içeren dosyayı yükleyin.")
