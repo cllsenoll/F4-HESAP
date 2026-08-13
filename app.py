@@ -204,15 +204,6 @@ custom_css = """
         border-radius: 8px !important;
         box-shadow: 0 4px 0 #9E2A2B, 0 6px 8px rgba(0,0,0,0.3) !important;
     }
-
-    .kasa-box {
-        background: linear-gradient(135deg, #FF7B00 0%, #FF5400 100%);
-        border: 2px solid #FFA200;
-        border-radius: 14px;
-        padding: 20px;
-        margin-top: 20px;
-        box-shadow: 0 6px 12px rgba(255, 123, 0, 0.3);
-    }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
@@ -284,7 +275,7 @@ def smart_read_file(uploaded_file):
         except Exception:
             continue
 
-    raise Exception("Dosya yapısı çözümlenemedi. Lütfen dosyanın bozuk olmadığını kontrol edin.")
+    raise Exception("Dosya yapısı çözümlenemedi.")
 
 # ==========================================
 # PERSONEL HESAP ALIMI EKRANI PARSER
@@ -381,29 +372,16 @@ def process_personnel_account_data(df):
                 "Banka/ATM": 0.0,
             })
 
-    if not temp_df.empty:
-        for _, row in temp_df.iterrows():
-            c_name = row["Clean_Name"]
-            if c_name not in processed_clean_names:
-                final_rows.append({
-                    "Personel Adı": row["Raw_Name"],
-                    "Nakit Ft Tutarı Topl": float(row["Nakit Ft Tutarı Topl"]),
-                    "Nakit Ödeme Tutarı Topl": float(row["Nakit Ödeme Tutarı Topl"]),
-                    "Banka/ATM": 0.0,
-                })
-                processed_clean_names.add(c_name)
-
     result_df = pd.DataFrame(final_rows)
     result_df["Hesap"] = result_df["Nakit Ft Tutarı Topl"] + result_df["Nakit Ödeme Tutarı Topl"] - result_df["Banka/ATM"]
     result_df["İşlem"] = False
-
     result_df.reset_index(drop=True, inplace=True)
     result_df.index = range(1, len(result_df) + 1)
 
     return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
 
 # ==========================================
-# F4 ÖDEME LİSTESİ İŞLEME MOTORU
+# F4 ÖDEME LİSTESİ İŞLEME MOTORU (GÜNCELLENDİ)
 # ==========================================
 def process_f4_payment_data(df):
     df.columns = df.columns.astype(str).str.strip()
@@ -425,10 +403,12 @@ def process_f4_payment_data(df):
 
     processed_rows = []
     for _, row in df.iterrows():
-        m_adi = str(row[aciklama_col]).strip() if aciklama_col and not pd.isna(row[aciklama_col]) else ""
-        if not m_adi or m_adi.upper() in ["NAN", "NONE", "TOPLAM", "TOTAL"]:
-            m_adi = str(row[musteri_col]).strip() if musteri_col else ""
-            
+        # Ham müşteri verilerini hem müşteri sütunundan hem açıklama sütunundan güvenli yakala
+        m_adi_1 = str(row[musteri_col]).strip() if musteri_col and not pd.isna(row[musteri_col]) else ""
+        m_adi_2 = str(row[aciklama_col]).strip() if aciklama_col and not pd.isna(row[aciklama_col]) else ""
+        
+        m_adi = m_adi_1 if m_adi_1 and m_adi_1.upper() not in ["NAN", "NONE", "TOPLAM", "TOTAL"] else m_adi_2
+        
         if not m_adi or m_adi.upper() in ["NAN", "NONE", "TOPLAM", "TOTAL"]:
             continue
             
@@ -441,6 +421,7 @@ def process_f4_payment_data(df):
         m_upper = m_adi.upper()
         m_clean = clean_string(m_adi)
 
+        # Doğrudan eşleşme veya esnek temizlenmiş eşleşme kontrolü
         if m_upper in MUSTERI_PERSONEL_MAP:
             assigned_personel = MUSTERI_PERSONEL_MAP[m_upper]
         else:
@@ -461,7 +442,7 @@ def process_f4_payment_data(df):
         processed_rows.append({
             "Müşteri Adı": m_adi,
             "Fatura Borcu": borc_val,
-            "Açıklama": "",
+            "Açıklama": m_adi_2 if m_adi_1 != m_adi_2 else "",
             "Personel": assigned_personel
         })
 
@@ -575,49 +556,7 @@ if st.session_state.active_tab == "HESAP":
             st.markdown(f"<div style='text-align: center; padding-top: 8px; font-weight: bold; font-size: 15px; color: {renk_kodu};'>{durum_metni}</div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
-        with st.expander("💵 Hesap Toplama Ekranı (Para Sayma Modülü)", expanded=False):
-            st.markdown("<p style='font-size:14px; color:#A0E7E5;'>Banknot adetlerini girerek toplam kasa tutarını hesaplayabilirsiniz.</p>", unsafe_allow_html=True)
-            
-            p_col1, p_col2, p_col3 = st.columns(3)
-            with p_col1:
-                 adet_200 = st.number_input("💵 200 TL Adet", min_value=0, value=0, step=1, key="adet_200")
-                 adet_20 = st.number_input("💵 20 TL Adet", min_value=0, value=0, step=1, key="adet_20")
-            with p_col2:
-                 adet_100 = st.number_input("💵 100 TL Adet", min_value=0, value=0, step=1, key="adet_100")
-                 adet_10 = st.number_input("💵 10 TL Adet", min_value=0, value=0, step=1, key="adet_10")
-            with p_col3:
-                 adet_50 = st.number_input("💵 50 TL Adet", min_value=0, value=0, step=1, key="adet_50")
-                 adet_5 = st.number_input("💵 5 TL Adet", min_value=0, value=0, step=1, key="adet_5")
-
-            toplam_para = (adet_200 * 200) + (adet_100 * 100) + (adet_50 * 50) + (adet_20 * 20) + (adet_10 * 10) + (adet_5 * 5)
-            
-            fark_hesaplama = toplam_para - GuncelKasa
-            if fark_hesaplama > 0:
-                fark_durum_metni = f"🟢 FAZLA: {fark_hesaplama:,.2f} ₺"
-                fark_renk = "#D8F3DC"
-            elif fark_hesaplama < 0:
-                fark_durum_metni = f"🔴 AÇIK: {abs(fark_hesaplama):,.2f} ₺"
-                fark_renk = "#FFE5D9"
-            else:
-                fark_durum_metni = "✅ KASA TAM (0.00 ₺)"
-                fark_renk = "#FFFFFF"
-
-            st.markdown(f"<div style='background: rgba(0,180,216,0.2); padding: 10px; border-radius: 8px; text-align: center; margin-top: 10px;'><span style='font-size: 16px; font-weight: bold; color: #90E0EF;'>Para Sayma Toplamı: {toplam_para:,.2f} ₺</span></div>", unsafe_allow_html=True)
-            st.markdown(f"<div style='background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; text-align: center; margin-top: 8px;'><span style='font-size: 15px; font-weight: bold; color: {fark_renk};'>Fazla/Açık Durumu (Para Sayma Toplamı - Manüel Kasa): {fark_durum_metni}</span></div>", unsafe_allow_html=True)
-            
-            if st.button("📥 Bu Tutarı Manüel Kasaya Aktar"):
-                st.session_state.kasa_miktari = float(toplam_para)
-                st.rerun()
-
-        st.caption("✍️ Personel fotoğrafları doğrudan GitHub deponuzdan URL kodlanmış şekilde çekilir.")
-
-        if st.sidebar.button("🔄 Verileri Sıfırla"):
-            st.session_state.hesap_df = account_df.copy()
-            st.session_state.kasa_miktari = 0.0
-            st.rerun()
-
         updated_rows = []
-        
         for idx, row in current_df.iterrows():
             p_name = row["Personel Adı"]
             ft_val = float(row["Nakit Ft Tutarı Topl"])
@@ -640,43 +579,25 @@ if st.session_state.active_tab == "HESAP":
             """, unsafe_allow_html=True)
 
             c1, c2, c3, c4, c5 = st.columns([2, 2, 2, 2, 1.5])
-            
-            with c1:
-                st.metric("Nakit Ft Topl", f"{ft_val:,.2f} ₺")
-            with c2:
-                st.metric("Nakit Ödeme Topl", f"{odeme_val:,.2f} ₺")
-            with c3:
-                new_banka = st.number_input(
-                    "Banka/ATM (Manuel)", 
-                    value=current_banka, 
-                    step=10.0, 
-                    format="%.2f", 
-                    key=f"banka_{idx}",
-                    label_visibility="collapsed"
-                )
-            with c4:
+            with c1: st.metric("Nakit Ft Topl", f"{ft_val:,.2f} ₺")
+            with c2: st.metric("Nakit Ödeme Topl", f"{odeme_val:,.2f} ₺")
+            with c3: new_banka = st.number_input("Banka/ATM", value=current_banka, step=10.0, format="%.2f", key=f"banka_{idx}", label_visibility="collapsed")
+            with c4: 
                 hesap_sonuc = ft_val + odeme_val - new_banka
                 st.metric("Hesap", f"{hesap_sonuc:,.2f} ₺")
-            with c5:
-                new_islem = st.checkbox("Tamam", value=current_islem, key=f"islem_{idx}")
-
-            st.markdown("<hr style='margin: 5px 0 15px 0; border: none; border-top: 1px solid rgba(255,255,255,0.2);'>", unsafe_allow_html=True)
+            with c5: new_islem = st.checkbox("Tamam", value=current_islem, key=f"islem_{idx}")
 
             updated_rows.append({
-                "Personel Adı": p_name,
-                "Nakit Ft Tutarı Topl": ft_val,
-                "Nakit Ödeme Tutarı Topl": odeme_val,
-                "Banka/ATM": new_banka,
-                "Hesap": hesap_sonuc,
-                "İşlem": new_islem
+                "Personel Adı": p_name, "Nakit Ft Tutarı Topl": ft_val, 
+                "Nakit Ödeme Tutarı Topl": odeme_val, "Banka/ATM": new_banka, 
+                "Hesap": hesap_sonuc, "İşlem": new_islem
             })
-            
         st.session_state.hesap_df = pd.DataFrame(updated_rows)
     else:
         st.info("ℹ️ Lütfen sol panelden personel hesap raporunu yükleyin.")
 
 # ==========================================
-# TAB 2: F4 ÖDEME LİSTESİ (GÜNCELLENDİ)
+# TAB 2: F4 ÖDEME LİSTESİ (SÜZGEÇ DÜZELTİLDİ)
 # ==========================================
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.title("📋 F4 Ödeme Listesi - Personel Bazlı Dağılım")
@@ -684,22 +605,24 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     f4_df = st.session_state.get('f4_df', None)
     
     if f4_df is not None and not f4_df.empty:
-        # Personellere göre sekmeler oluşturma
-        benzersiz_personeller = sorted(f4_df["Personel"].unique())
+        # Sadece veride gerçekten müşterisi bulunan personelleri listele (veya tüm PERSONEL_LISTESI)
+        benzersiz_personeller = [p for p in PERSONEL_LISTESI if p in f4_df["Personel"].unique()]
+        # Eğer sözlükte olmayan ve atanamayan varsa onları da ekle
+        diger_personeller = [p for p in f4_df["Personel"].unique() if p not in benzersiz_personeller]
+        aktif_personeller = benzersiz_personeller + diger_personeller
         
-        tab_list = st.tabs([f"👤 {p}" for p in benzersiz_personeller])
+        tab_list = st.tabs([f"👤 {p}" for p in aktif_personeller])
         
-        for i, personel in enumerate(benzersiz_personeller):
+        for i, personel in enumerate(aktif_personeller):
             with tab_list[i]:
                 personel_df = f4_df[f4_df["Personel"] == personel].copy()
                 
                 st.subheader(f"{personel} - Müşteri Ödeme Listesi")
                 st.markdown(f"Toplam Müşteri/Kayıt: **{len(personel_df)}** | Toplam Borç: **{personel_df['Fatura Borcu'].sum():,.2f} ₺**")
                 
-                # Tabloyu göster
                 st.dataframe(personel_df[["Müşteri Adı", "Fatura Borcu", "Açıklama"]], use_container_width=True)
                 
-                # PDF / Tarayıcı üzerinden Yazdırma Özelliği
+                # PDF / Yazdırma HTML Şablonu
                 html_icerik = f"""
                 <html>
                 <head>
@@ -744,9 +667,7 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
                         </tbody>
                     </table>
                     <div class="total">Toplam Borç: {toplam_tutar:,.2f} ₺</div>
-                    <script>
-                        window.print();
-                    </script>
+                    <script>window.print();</script>
                 </body>
                 </html>
                 """
@@ -754,7 +675,7 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
                 encoded_html = urllib.parse.quote(html_icerik)
                 data_url = f"data:text/html;charset=utf-8,{encoded_html}"
                 
-                col_p1, col_p2 = st.columns([1, 4])
+                col_p1, _ = st.columns([1, 4])
                 with col_p1:
                     st.markdown(f"""
                         <a href="{data_url}" target="_blank" style="text-decoration: none;">
