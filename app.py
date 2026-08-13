@@ -136,14 +136,8 @@ MUSTERI_PERSONEL_MAP = {
     "ÖZBAYRAK KIZAK KORUMA SİSTEMLERİ ENDÜSTRİ MAKİNE SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SUAT ARI"
 }
 
-PERSONEL_LISTESI = [
-    "HATİCE KÜBRA IŞIK", "ALATTİN CEBECİ", "BURCU DÜREN",
-    "AHMET BERKAN ÖKSÜZ", "HASAN SAĞLAM", "MEHMET KAYMAZ",
-    "SUAT ARI", "SERGEN GÖRÜROĞLU", "CELAL ŞENOL", "ATANMAMIŞ"
-]
-
 # ==========================================
-# CSS VE TEMA KODLARI
+# CSS VE YENİ TEMA KODLARI
 # ==========================================
 custom_css = """
 <style>
@@ -575,6 +569,9 @@ if st.session_state.active_tab == "HESAP":
             st.markdown(f"<div style='text-align: center; padding-top: 8px; font-weight: bold; font-size: 15px; color: {renk_kodu};'>{durum_metni}</div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
+        # ==========================================
+        # YENİ ÖZELLİK: HESAP TOPLAMA EKRANI (PARA SAYMA)
+        # ==========================================
         with st.expander("💵 Hesap Toplama Ekranı (Para Sayma Modülü)", expanded=False):
             st.markdown("<p style='font-size:14px; color:#A0E7E5;'>Banknot adetlerini girerek toplam kasa tutarını hesaplayabilirsiniz.</p>", unsafe_allow_html=True)
             
@@ -591,19 +588,7 @@ if st.session_state.active_tab == "HESAP":
 
             toplam_para = (adet_200 * 200) + (adet_100 * 100) + (adet_50 * 50) + (adet_20 * 20) + (adet_10 * 10) + (adet_5 * 5)
             
-            fark_hesaplama = toplam_para - GuncelKasa
-            if fark_hesaplama > 0:
-                fark_durum_metni = f"🟢 FAZLA: {fark_hesaplama:,.2f} ₺"
-                fark_renk = "#D8F3DC"
-            elif fark_hesaplama < 0:
-                fark_durum_metni = f"🔴 AÇIK: {abs(fark_hesaplama):,.2f} ₺"
-                fark_renk = "#FFE5D9"
-            else:
-                fark_durum_metni = "✅ KASA TAM (0.00 ₺)"
-                fark_renk = "#FFFFFF"
-
             st.markdown(f"<div style='background: rgba(0,180,216,0.2); padding: 10px; border-radius: 8px; text-align: center; margin-top: 10px;'><span style='font-size: 16px; font-weight: bold; color: #90E0EF;'>Para Sayma Toplamı: {toplam_para:,.2f} ₺</span></div>", unsafe_allow_html=True)
-            st.markdown(f"<div style='background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; text-align: center; margin-top: 8px;'><span style='font-size: 15px; font-weight: bold; color: {fark_renk};'>Fazla/Açık Durumu (Para Sayma Toplamı - Manüel Kasa): {fark_durum_metni}</span></div>", unsafe_allow_html=True)
             
             if st.button("📥 Bu Tutarı Manüel Kasaya Aktar"):
                 st.session_state.kasa_miktari = float(toplam_para)
@@ -698,11 +683,11 @@ if st.session_state.active_tab == "HESAP":
         st.info("💡 Lütfen sol taraftan **Personel Hesap Alımı Ekranı** dosyanızı yükleyin.")
 
 # ==========================================
-# TAB 2: F4 ÖDEME LİSTESİ (TAM FONKSİYONEL)
+# TAB 2: F4 ÖDEME LİSTESİ (DOĞRUDAN PDF ÇIKTISI)
 # ==========================================
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.title("📋 F4 Ödeme ve Personel Tahsilat Listesi")
-    st.caption("✍️ Tablo üzerinden 'Sorumlu Personel' sütunundan açılır menüyü kullanarak veya manuel olarak personel seçebilir, değiştirebilirsiniz.")
+    st.caption("✍️ Tablo üzerinden 'Sorumlu Personel' sütununa tıklayarak eksik veya atanmamış firmaların personel isimlerini **manuel olarak yazabilir** veya değiştirebilirsiniz.")
 
     f4_df = st.session_state.f4_df
     if f4_df is not None and not f4_df.empty:
@@ -713,12 +698,7 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
                 "Müşteri Adı": st.column_config.TextColumn("Müşteri Adı", disabled=True),
                 "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺", disabled=True),
                 "Açıklama": st.column_config.TextColumn("Açıklama", disabled=True),
-                "Personel": st.column_config.SelectboxColumn(
-                    "Sorumlu Personel",
-                    help="Müşteriden sorumlu personeli seçin",
-                    options=PERSONEL_LISTESI,
-                    required=True
-                )
+                "Personel": st.column_config.TextColumn("Sorumlu Personel (Düzenlenebilir)")
             },
             hide_index=False,
             use_container_width=True,
@@ -727,44 +707,3 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
         )
         
         st.session_state.f4_df = pd.DataFrame(edited_f4_df)
-        
-        st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
-        st.subheader("👥 Personele Göre F4 Tahsilat Dağılımı ve Detayları")
-
-        current_f4 = st.session_state.f4_df
-        personel_ozet = current_f4.groupby("Personel")["Fatura Borcu"].sum().reset_index()
-        personel_ozet.columns = ["Personel Adı", "Toplam Tahsilat / Borç"]
-
-        for _, row in personel_ozet.iterrows():
-            p_ad = row["Personel Adı"]
-            p_tutar = row["Toplam Tahsilat / Borç"]
-
-            foto_url = get_github_avatar(p_ad)
-            fallback_url = f"https://api.dicebear.com/7.x/avataaars/svg?seed={p_ad.replace(' ', '')}"
-
-            with st.expander(f"👤 {p_ad} — Toplam: {p_tutar:,.2f} ₺", expanded=False):
-                st.markdown(f"""
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
-                    <img src="{foto_url}" width="40" height="40" style="border-radius: 50%; object-fit: cover; border: 2px solid #FFA200; background: #fff;" onerror="this.onerror=null; this.src='{fallback_url}';" />
-                    <div>
-                        <strong style="color: #FFFFFF; font-size: 16px;">{p_ad}</strong><br>
-                        <span style="color: #00B4D8; font-size: 14px;">Toplam Sorumluluk Tutarı: <strong>{p_tutar:,.2f} ₺</strong></span>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-
-                sub_df = current_f4[current_f4["Personel"] == p_ad]
-                if not sub_df.empty:
-                    st.dataframe(
-                        sub_df[["Müşteri Adı", "Fatura Borcu"]],
-                        column_config={
-                            "Müşteri Adı": st.column_config.TextColumn("Müşteri / Firma Adı"),
-                            "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺")
-                        },
-                        hide_index=True,
-                        use_container_width=True
-                    )
-                else:
-                    st.info("Bu personele atanmış müşteri bulunmuyor.")
-    else:
-        st.info("💡 Lütfen sol taraftan **F4 / Müşteri Borç Listesi** dosyanızı yükleyin.")
