@@ -3,7 +3,6 @@ import pandas as pd
 import io
 import re
 import urllib.parse
-import streamlit.components.v1 as components
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -792,17 +791,45 @@ if st.session_state.active_tab == "HESAP":
         st.info("💡 Lütfen sol taraftan **Personel Hesap Alımı Ekranı** dosyanızı yükleyin.")
 
 # ==========================================
-# TAB 2: F4 ÖDEME LİSTESİ (TAM FONKSİYONEL + PDF + ATANMAMIŞLAR)
+# TAB 2: F4 ÖDEME LİSTESİ (FİLTRELEME + EXCEL İNDİRME + PDF + ATANMAMIŞLAR)
 # ==========================================
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.title("📋 F4 Ödeme ve Personel Tahsilat Listesi")
-    st.caption("✍️ Tablo üzerinden 'Sorumlu Personel' sütunundan açılır menüyü kullanarak veya manuel olarak personel seçebilir, değiştirebilirsiniz.")
+    st.caption("✍️ Tablo üzerinden 'Sorumlu Personel' sütunundan açılır menüyü kullanarak personel seçebilir, arama yapabilir ve listeyi Excel/PDF olarak indirebilirsiniz.")
 
     f4_df = st.session_state.f4_df
     if f4_df is not None and not f4_df.empty:
         
+        # ARAMA VE FİLTRELEME ARAÇLARI
+        filtre_col1, filtre_col2 = st.columns([3, 1])
+        with filtre_col1:
+            arama_terimi = st.text_input("🔍 Müşteri / Firma Adına Göre Ara", placeholder="Firma adı yazın...")
+        with filtre_col2:
+            personel_filtre = st.selectbox("👤 Personele Göre Filtrele", ["Tümü"] + PERSONEL_LISTESI)
+
+        calistirilacak_df = f4_df.copy()
+        if arama_terimi:
+            calistirilacak_df = calistirilacak_df[calistirilacak_df["Müşteri Adı"].str.contains(arama_terimi, case=False, na=False)]
+        if personel_filtre != "Tümü":
+            calistirilacak_df = calistirilacak_df[calistirilacak_df["Personel"] == personel_filtre]
+
+        # EXCEL DIŞA AKTARMA BUTONU
+        excel_buffer = io.BytesIO()
+        with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+            f4_df.to_excel(writer, index=False, sheet_name='F4_Odeme_Listesi')
+        excel_buffer.seek(0)
+        
+        st.download_button(
+            label="📥 Tüm F4 Listesini Excel Olarak İndir (.xlsx)",
+            data=excel_buffer,
+            file_name="F4_Odeme_Listesi_Guncel.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
         edited_f4_df = st.data_editor(
-            f4_df,
+            calistirilacak_df,
             column_config={
                 "Müşteri Adı": st.column_config.TextColumn("Müşteri Adı", disabled=True),
                 "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺", disabled=True),
@@ -820,7 +847,11 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             key="f4_editable_table"
         )
         
-        st.session_state.f4_df = pd.DataFrame(edited_f4_df)
+        # Güncellenen verileri ana f4_df state'ine işleme
+        for idx, row in edited_f4_df.iterrows():
+            orig_idx = row.name
+            f4_df.at[orig_idx, "Personel"] = row["Personel"]
+        st.session_state.f4_df = f4_df
         
         st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
         
