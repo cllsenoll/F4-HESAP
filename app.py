@@ -4,6 +4,22 @@ import io
 import re
 import urllib.parse
 import streamlit.components.v1 as components
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+# Türkçe karakter desteği için DejaVu Sans fontunu kaydedelim (ReportLab dahili unicode fontu)
+try:
+    pdfmetrics.registerFont(TTFont('DejaVuSans', 'DejaVuSans.ttf'))
+    pdfmetrics.registerFont(TTFont('DejaVuSans-Bold', 'DejaVuSans-Bold.ttf'))
+    FONT_NAME = 'DejaVuSans'
+    FONT_NAME_BOLD = 'DejaVuSans-Bold'
+except:
+    FONT_NAME = 'Helvetica'
+    FONT_NAME_BOLD = 'Helvetica-Bold'
 
 # 1. SAYFA YAPILANDIRMASI
 st.set_page_config(
@@ -81,7 +97,7 @@ MUSTERI_PERSONEL_MAP = {
     "ORCA HOME TEKSTİL İTHALAT İHRACATSANAYİ VE TİCARET LİMİTED ŞİRKETİ": "BURCU DÜREN",
     "OTEKSO MÜHENDİSLİK TASARIM MAKİNE SANAYİ VE TİCARET ANONİM ŞİRKETİ": "BURCU DÜREN",
     "PROLİFT ASANSÖR SANAYİ VE TİCARET ANONİM ŞİRKETİ": "BURCU DÜREN",
-    "S.S.MARMARA ZEYTİN TARIM SAT.KOOP.BİR.MARMARABİRLİK": "BURCU DÜREN",
+    "S.S.MARMARA ZEYTİN TARIM SAT.KOOP.BİR.MARMARABİRKİK": "BURCU DÜREN",
     "T-BİYOTEKNOLOJİ LABORATUVAR ESTETİK MEDİKAL KOZMETİK SANAYİVE TİCARET LTD.ŞTİ.": "BURCU DÜREN",
     "UĞURLU FİNİSAJ SİSTEMLERİ SANAYİ VE TİCARET ANONİM ŞİRKETİ": "BURCU DÜREN",
     "VARNA DERİ SANAYİ VE TİCARET A.Ş.": "BURCU DÜREN",
@@ -136,8 +152,14 @@ MUSTERI_PERSONEL_MAP = {
     "ÖZBAYRAK KIZAK KORUMA SİSTEMLERİ ENDÜSTRİ MAKİNE SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SUAT ARI"
 }
 
+PERSONEL_LISTESI = [
+    "HATİCE KÜBRA IŞIK", "ALATTİN CEBECİ", "BURCU DÜREN",
+    "AHMET BERKAN ÖKSÜZ", "HASAN SAĞLAM", "MEHMET KAYMAZ",
+    "SUAT ARI", "SERGEN GÖRÜROĞLU", "CELAL ŞENOL", "ATANMAMIŞ"
+]
+
 # ==========================================
-# CSS VE YENİ TEMA KODLARI
+# CSS VE TEMA KODLARI
 # ==========================================
 custom_css = """
 <style>
@@ -466,6 +488,85 @@ def process_f4_payment_data(df):
     return res_df
 
 # ==========================================
+# PDF OLUŞTURMA MOTORU (REPORTLAB)
+# ==========================================
+def generate_personnel_pdf(personel_adi, sub_df):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+    elements = []
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'TitleStyle',
+        parent=styles['Heading1'],
+        fontName=FONT_NAME_BOLD,
+        fontSize=16,
+        textColor=colors.HexColor('#0B192C'),
+        alignment=1,
+        spaceAfter=15
+    )
+    subtitle_style = ParagraphStyle(
+        'SubTitleStyle',
+        parent=styles['Normal'],
+        fontName=FONT_NAME,
+        fontSize=10,
+        textColor=colors.HexColor('#555555'),
+        alignment=1,
+        spaceAfter=20
+    )
+    cell_style = ParagraphStyle(
+        'CellStyle',
+        parent=styles['Normal'],
+        fontName=FONT_NAME,
+        fontSize=9,
+        textColor=colors.HexColor('#000000')
+    )
+    cell_bold_style = ParagraphStyle(
+        'CellBoldStyle',
+        parent=styles['Normal'],
+        fontName=FONT_NAME_BOLD,
+        fontSize=9,
+        textColor=colors.HexColor('#000000')
+    )
+
+    elements.append(Paragraph(f"YURTİÇİ KARGO GÖRÜKLE ACENTE", title_style))
+    elements.append(Paragraph(f"Sorumlu Personel Tahsilat Listesi: <b>{personel_adi}</b>", subtitle_style))
+
+    toplam_tutar = sub_df["Fatura Borcu"].sum() if not sub_df.empty else 0.0
+
+    table_data = [[Paragraph("<b>Müşteri / Firma Adı</b>", cell_bold_style), Paragraph("<b>Fatura Borcu (₺)</b>", cell_bold_style)]]
+
+    for _, row in sub_df.iterrows():
+        table_data.append([
+            Paragraph(str(row["Müşteri Adı"]), cell_style),
+            Paragraph(f"{row['Fatura Borcu']:,.2f} ₺", cell_style)
+        ])
+
+    table_data.append([
+        Paragraph("<b>TOPLAM TUTAR</b>", cell_bold_style),
+        Paragraph(f"<b>{toplam_tutar:,.2f} ₺</b>", cell_bold_style)
+    ])
+
+    col_widths = [400, 135]
+    t = Table(table_data, colWidths=col_widths)
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#00B4D8')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('GRID', (0, 0), (-1, -2), 0.5, colors.HexColor('#CCCCCC')),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#E2E8F0')),
+        ('LINEABOVE', (0, -1), (-1, -1), 1, colors.HexColor('#0B192C')),
+    ]))
+
+    elements.append(t)
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+# ==========================================
 # SIDEBAR VE GEZİNTİ MENÜSÜ
 # ==========================================
 with st.sidebar:
@@ -478,7 +579,6 @@ with st.sidebar:
     
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     
-    # TURUNCU KART, BEYAZ YAZILAR (Geliştirici Alanı)
     st.markdown(f"""
     <div class="notranslate" style="background: linear-gradient(135deg, #FF7B00 0%, #FF5400 100%); border-radius: 12px; padding: 12px; margin-bottom: 15px; border: 1px solid #FFA200; box-shadow: 0 6px 0 #9E2A2B, 0 8px 12px rgba(0,0,0,0.3);">
         <small style="color: #FFFFFF; font-weight: 600;">Geliştirici:</small><br>
@@ -570,6 +670,40 @@ if st.session_state.active_tab == "HESAP":
             st.markdown(f"<div style='text-align: center; padding-top: 8px; font-weight: bold; font-size: 15px; color: {renk_kodu};'>{durum_metni}</div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
+        with st.expander("💵 Hesap Toplama Ekranı (Para Sayma Modülü)", expanded=False):
+            st.markdown("<p style='font-size:14px; color:#A0E7E5;'>Banknot adetlerini girerek toplam kasa tutarını hesaplayabilirsiniz.</p>", unsafe_allow_html=True)
+            
+            p_col1, p_col2, p_col3 = st.columns(3)
+            with p_col1:
+                 adet_200 = st.number_input("💵 200 TL Adet", min_value=0, value=0, step=1, key="adet_200")
+                 adet_20 = st.number_input("💵 20 TL Adet", min_value=0, value=0, step=1, key="adet_20")
+            with p_col2:
+                 adet_100 = st.number_input("💵 100 TL Adet", min_value=0, value=0, step=1, key="adet_100")
+                 adet_10 = st.number_input("💵 10 TL Adet", min_value=0, value=0, step=1, key="adet_10")
+            with p_col3:
+                 adet_50 = st.number_input("💵 50 TL Adet", min_value=0, value=0, step=1, key="adet_50")
+                 adet_5 = st.number_input("💵 5 TL Adet", min_value=0, value=0, step=1, key="adet_5")
+
+            toplam_para = (adet_200 * 200) + (adet_100 * 100) + (adet_50 * 50) + (adet_20 * 20) + (adet_10 * 10) + (adet_5 * 5)
+            
+            fark_hesaplama = toplam_para - GuncelKasa
+            if fark_hesaplama > 0:
+                fark_durum_metni = f"🟢 FAZLA: {fark_hesaplama:,.2f} ₺"
+                fark_renk = "#D8F3DC"
+            elif fark_hesaplama < 0:
+                fark_durum_metni = f"🔴 AÇIK: {abs(fark_hesaplama):,.2f} ₺"
+                fark_renk = "#FFE5D9"
+            else:
+                fark_durum_metni = "✅ KASA TAM (0.00 ₺)"
+                fark_renk = "#FFFFFF"
+
+            st.markdown(f"<div style='background: rgba(0,180,216,0.2); padding: 10px; border-radius: 8px; text-align: center; margin-top: 10px;'><span style='font-size: 16px; font-weight: bold; color: #90E0EF;'>Para Sayma Toplamı: {toplam_para:,.2f} ₺</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; text-align: center; margin-top: 8px;'><span style='font-size: 15px; font-weight: bold; color: {fark_renk};'>Fazla/Açık Durumu (Para Sayma Toplamı - Manüel Kasa): {fark_durum_metni}</span></div>", unsafe_allow_html=True)
+            
+            if st.button("📥 Bu Tutarı Manüel Kasaya Aktar"):
+                st.session_state.kasa_miktari = float(toplam_para)
+                st.rerun()
+
         st.caption("✍️ Personel fotoğrafları doğrudan GitHub deponuzdan URL kodlanmış şekilde çekilir.")
 
         if st.sidebar.button("🔄 Verileri Sıfırla"):
@@ -659,11 +793,11 @@ if st.session_state.active_tab == "HESAP":
         st.info("💡 Lütfen sol taraftan **Personel Hesap Alımı Ekranı** dosyanızı yükleyin.")
 
 # ==========================================
-# TAB 2: F4 ÖDEME LİSTESİ (DOĞRUDAN PDF ÇIKTISI)
+# TAB 2: F4 ÖDEME LİSTESİ (TAM FONKSİYONEL + PDF + ATANMAMIŞLAR)
 # ==========================================
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.title("📋 F4 Ödeme ve Personel Tahsilat Listesi")
-    st.caption("✍️ Tablo üzerinden 'Sorumlu Personel' sütununa tıklayarak eksik veya atanmamış firmaların personel isimlerini **manuel olarak yazabilir** veya değiştirebilirsiniz.")
+    st.caption("✍️ Tablo üzerinden 'Sorumlu Personel' sütunundan açılır menüyü kullanarak veya manuel olarak personel seçebilir, değiştirebilirsiniz.")
 
     f4_df = st.session_state.f4_df
     if f4_df is not None and not f4_df.empty:
@@ -674,7 +808,12 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
                 "Müşteri Adı": st.column_config.TextColumn("Müşteri Adı", disabled=True),
                 "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺", disabled=True),
                 "Açıklama": st.column_config.TextColumn("Açıklama", disabled=True),
-                "Personel": st.column_config.TextColumn("Sorumlu Personel (Düzenlenebilir)")
+                "Personel": st.column_config.SelectboxColumn(
+                    "Sorumlu Personel",
+                    help="Müşteriden sorumlu personeli seçin",
+                    options=PERSONEL_LISTESI,
+                    required=True
+                )
             },
             hide_index=False,
             use_container_width=True,
@@ -684,65 +823,74 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
         
         st.session_state.f4_df = pd.DataFrame(edited_f4_df)
         
-        st.markdown("---")
+        st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
         
-        available_personnel = ["Tümü"] + sorted(st.session_state.f4_df["Personel"].dropna().unique().tolist())
-        selected_f4_personel = st.selectbox("🔍 Sorumlu Personele Göre Süzgeçle:", available_personnel, key="f4_personel_filter")
-        
-        if selected_f4_personel != "Tümü":
-            display_f4_df = st.session_state.f4_df[st.session_state.f4_df["Personel"] == selected_f4_personel]
-        else:
-            display_f4_df = st.session_state.f4_df
-            
-        st.subheader(f"📌 Seçilen Görünüm: {selected_f4_personel} (Toplam {len(display_f4_df)} Kayıt)")
-        st.dataframe(display_f4_df, use_container_width=True)
-        
-        if not display_f4_df.empty:
-            toplam_secilen_borc = display_f4_df["Fatura Borcu"].sum()
-            st.metric(label=f"{selected_f4_personel} - Toplam Fatura Borcu / Tahsilat Hedefi", value=f"{toplam_secilen_borc:,.2f} ₺")
-            
-            st.markdown("### 🖨️ PDF Çıktısı Al / Yazdır")
-            
-            # HTML Tablo formatı ve otomatik yazdırma tetikleyicisi
-            html_table = display_f4_df.to_html(index=False, classes='styled-table')
-            print_html = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <style>
-                    body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; padding: 15px; background: #fff; }}
-                    h3 {{ color: #0B192C; border-bottom: 2px solid #FF7B00; padding-bottom: 5px; margin-top: 0; }}
-                    .info {{ margin-bottom: 15px; font-size: 14px; }}
-                    table.styled-table {{ width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }}
-                    table.styled-table th, table.styled-table td {{ border: 1px solid #ddd; padding: 8px 12px; text-align: left; }}
-                    table.styled-table th {{ background-color: #0B192C; color: white; }}
-                    table.styled-table tr:nth-child(even) {{ background-color: #f9f9f9; }}
-                    .print-btn {{
-                        background: linear-gradient(135deg, #FF7B00 0%, #FF5400 100%);
-                        color: white; border: none; padding: 12px 24px; font-size: 15px;
-                        font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: 20px;
-                        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-                    }}
-                    .print-btn:hover {{ background: linear-gradient(135deg, #FF5400 0%, #D94800 100%); }}
-                    @media print {{
-                        .print-btn {{ display: none; }}
-                        body {{ padding: 0; }}
-                    }}
-                </style>
-            </head>
-            <body>
-                <h3>Görükle Acente KOYS - F4 Tahsilat Listesi</h3>
-                <div class="info">
-                    <p><strong>Sorumlu Personel:</strong> {selected_f4_personel}</p>
-                    <p><strong>Toplam Kayıt:</strong> {len(display_f4_df)} | <strong>Toplam Hedef:</strong> {toplam_secilen_borc:,.2f} ₺</p>
+        # ATANMAMIŞLAR BÖLÜMÜ
+        atanmamis_df = st.session_state.f4_df[st.session_state.f4_df["Personel"] == "ATANMAMIŞ"]
+        if not atanmamis_df.empty:
+            st.markdown("### ⚠️ Personel Atanmamış Firmalar Listesi")
+            st.info(f"Toplam {len(atanmamis_df)} adet firmaya henüz personel atanmamıştır. Yukarıdaki tablodan personel ataması yapabilirsiniz.")
+            st.dataframe(
+                atanmamis_df[["Müşteri Adı", "Fatura Borcu", "Personel"]],
+                column_config={
+                    "Müşteri Adı": st.column_config.TextColumn("Müşteri / Firma Adı"),
+                    "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺"),
+                    "Personel": st.column_config.TextColumn("Atanan Personel")
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+            st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
+
+        st.subheader("👥 Personele Göre F4 Tahsilat Dağılımı, Detayları ve PDF Çıktıları")
+
+        current_f4 = st.session_state.f4_df
+        personel_ozet = current_f4.groupby("Personel")["Fatura Borcu"].sum().reset_index()
+        personel_ozet.columns = ["Personel Adı", "Toplam Tahsilat / Borç"]
+
+        for _, row in personel_ozet.iterrows():
+            p_ad = row["Personel Adı"]
+            p_tutar = row["Toplam Tahsilat / Borç"]
+
+            foto_url = get_github_avatar(p_ad)
+            fallback_url = f"https://api.dicebear.com/7.x/avataaars/svg?seed={p_ad.replace(' ', '')}"
+
+            with st.expander(f"👤 {p_ad} — Toplam: {p_tutar:,.2f} ₺", expanded=False):
+                st.markdown(f"""
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <img src="{foto_url}" width="40" height="40" style="border-radius: 50%; object-fit: cover; border: 2px solid #FFA200; background: #fff;" onerror="this.onerror=null; this.src='{fallback_url}';" />
+                        <div>
+                            <strong style="color: #FFFFFF; font-size: 16px;">{p_ad}</strong><br>
+                            <span style="color: #00B4D8; font-size: 14px;">Toplam Sorumluluk Tutarı: <strong>{p_tutar:,.2f} ₺</strong></span>
+                        </div>
+                    </div>
                 </div>
-                {html_table}
-                <br>
-                <button class="print-btn" onclick="window.print()">🖨️ PDF Olarak Yazdır / Kaydet</button>
-            </body>
-            </html>
-            """
-            components.html(print_html, height=380, scrolling=True)
+                """, unsafe_allow_html=True)
+
+                sub_df = current_f4[current_f4["Personel"] == p_ad]
+                if not sub_df.empty:
+                    st.dataframe(
+                        sub_df[["Müşteri Adı", "Fatura Borcu"]],
+                        column_config={
+                            "Müşteri Adı": st.column_config.TextColumn("Müşteri / Firma Adı"),
+                            "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺")
+                        },
+                        hide_index=True,
+                        use_container_width=True
+                    )
+                    
+                    # PDF İndirme Butonu
+                    pdf_bytes = generate_personnel_pdf(p_ad, sub_df)
+                    safe_filename = p_ad.replace(" ", "_").replace("İ", "I").replace("Ş", "S").replace("Ğ", "G").replace("Ü", "U").replace("Ö", "O").replace("Ç", "C")
+                    st.download_button(
+                        label=f"📄 {p_ad} - PDF Listesini İndir",
+                        data=pdf_bytes,
+                        file_name=f"F4_Tahsilat_Listesi_{safe_filename}.pdf",
+                        mime="application/pdf",
+                        key=f"pdf_btn_{p_ad}"
+                    )
+                else:
+                    st.info("Bu personele atanmış müşteri bulunmuyor.")
     else:
-        st.info("💡 Lütfen sol taraftan **F4 / Ödeme Listesi** dosyanızı yükleyin.")
+        st.info("💡 Lütfen sol taraftan **F4 / Müşteri Borç Listesi** dosyanızı yükleyin.")
