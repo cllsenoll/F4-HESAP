@@ -478,7 +478,6 @@ with st.sidebar:
     
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     
-    # TURUNCU KART, BEYAZ YAZILAR (Geliştirici Alanı)
     st.markdown(f"""
     <div class="notranslate" style="background: linear-gradient(135deg, #FF7B00 0%, #FF5400 100%); border-radius: 12px; padding: 12px; margin-bottom: 15px; border: 1px solid #FFA200; box-shadow: 0 6px 0 #9E2A2B, 0 8px 12px rgba(0,0,0,0.3);">
         <small style="color: #FFFFFF; font-weight: 600;">Geliştirici:</small><br>
@@ -569,6 +568,31 @@ if st.session_state.active_tab == "HESAP":
             
             st.markdown(f"<div style='text-align: center; padding-top: 8px; font-weight: bold; font-size: 15px; color: {renk_kodu};'>{durum_metni}</div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
+
+        # ==========================================
+        # YENİ ÖZELLİK: HESAP TOPLAMA EKRANI (PARA SAYMA)
+        # ==========================================
+        with st.expander("💵 Hesap Toplama Ekranı (Para Sayma Modülü)", expanded=False):
+            st.markdown("<p style='font-size:14px; color:#A0E7E5;'>Banknot adetlerini girerek toplam kasa tutarını hesaplayabilirsiniz.</p>", unsafe_allow_html=True)
+            
+            p_col1, p_col2, p_col3 = st.columns(3)
+            with p_col1:
+                 adet_200 = st.number_input("💵 200 TL Adet", min_value=0, value=0, step=1, key="adet_200")
+                 adet_20 = st.number_input("💵 20 TL Adet", min_value=0, value=0, step=1, key="adet_20")
+            with p_col2:
+                 adet_100 = st.number_input("💵 100 TL Adet", min_value=0, value=0, step=1, key="adet_100")
+                 adet_10 = st.number_input("💵 10 TL Adet", min_value=0, value=0, step=1, key="adet_10")
+            with p_col3:
+                 adet_50 = st.number_input("💵 50 TL Adet", min_value=0, value=0, step=1, key="adet_50")
+                 adet_5 = st.number_input("💵 5 TL Adet", min_value=0, value=0, step=1, key="adet_5")
+
+            toplam_para = (adet_200 * 200) + (adet_100 * 100) + (adet_50 * 50) + (adet_20 * 20) + (adet_10 * 10) + (adet_5 * 5)
+            
+            st.markdown(f"<div style='background: rgba(0,180,216,0.2); padding: 10px; border-radius: 8px; text-align: center; margin-top: 10px;'><span style='font-size: 16px; font-weight: bold; color: #90E0EF;'>Para Sayma Toplamı: {toplam_para:,.2f} ₺</span></div>", unsafe_allow_html=True)
+            
+            if st.button("📥 Bu Tutarı Manüel Kasaya Aktar"):
+                st.session_state.kasa_miktari = float(toplam_para)
+                st.rerun()
 
         st.caption("✍️ Personel fotoğrafları doğrudan GitHub deponuzdan URL kodlanmış şekilde çekilir.")
 
@@ -683,66 +707,3 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
         )
         
         st.session_state.f4_df = pd.DataFrame(edited_f4_df)
-        
-        st.markdown("---")
-        
-        available_personnel = ["Tümü"] + sorted(st.session_state.f4_df["Personel"].dropna().unique().tolist())
-        selected_f4_personel = st.selectbox("🔍 Sorumlu Personele Göre Süzgeçle:", available_personnel, key="f4_personel_filter")
-        
-        if selected_f4_personel != "Tümü":
-            display_f4_df = st.session_state.f4_df[st.session_state.f4_df["Personel"] == selected_f4_personel]
-        else:
-            display_f4_df = st.session_state.f4_df
-            
-        st.subheader(f"📌 Seçilen Görünüm: {selected_f4_personel} (Toplam {len(display_f4_df)} Kayıt)")
-        st.dataframe(display_f4_df, use_container_width=True)
-        
-        if not display_f4_df.empty:
-            toplam_secilen_borc = display_f4_df["Fatura Borcu"].sum()
-            st.metric(label=f"{selected_f4_personel} - Toplam Fatura Borcu / Tahsilat Hedefi", value=f"{toplam_secilen_borc:,.2f} ₺")
-            
-            st.markdown("### 🖨️ PDF Çıktısı Al / Yazdır")
-            
-            # HTML Tablo formatı ve otomatik yazdırma tetikleyicisi
-            html_table = display_f4_df.to_html(index=False, classes='styled-table')
-            print_html = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <style>
-                    body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; padding: 15px; background: #fff; }}
-                    h3 {{ color: #0B192C; border-bottom: 2px solid #FF7B00; padding-bottom: 5px; margin-top: 0; }}
-                    .info {{ margin-bottom: 15px; font-size: 14px; }}
-                    table.styled-table {{ width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }}
-                    table.styled-table th, table.styled-table td {{ border: 1px solid #ddd; padding: 8px 12px; text-align: left; }}
-                    table.styled-table th {{ background-color: #0B192C; color: white; }}
-                    table.styled-table tr:nth-child(even) {{ background-color: #f9f9f9; }}
-                    .print-btn {{
-                        background: linear-gradient(135deg, #FF7B00 0%, #FF5400 100%);
-                        color: white; border: none; padding: 12px 24px; font-size: 15px;
-                        font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: 20px;
-                        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-                    }}
-                    .print-btn:hover {{ background: linear-gradient(135deg, #FF5400 0%, #D94800 100%); }}
-                    @media print {{
-                        .print-btn {{ display: none; }}
-                        body {{ padding: 0; }}
-                    }}
-                </style>
-            </head>
-            <body>
-                <h3>Görükle Acente KOYS - F4 Tahsilat Listesi</h3>
-                <div class="info">
-                    <p><strong>Sorumlu Personel:</strong> {selected_f4_personel}</p>
-                    <p><strong>Toplam Kayıt:</strong> {len(display_f4_df)} | <strong>Toplam Hedef:</strong> {toplam_secilen_borc:,.2f} ₺</p>
-                </div>
-                {html_table}
-                <br>
-                <button class="print-btn" onclick="window.print()">🖨️ PDF Olarak Yazdır / Kaydet</button>
-            </body>
-            </html>
-            """
-            components.html(print_html, height=380, scrolling=True)
-    else:
-        st.info("💡 Lütfen sol taraftan **F4 / Ödeme Listesi** dosyanızı yükleyin.")
