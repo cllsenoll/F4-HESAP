@@ -588,7 +588,20 @@ if st.session_state.active_tab == "HESAP":
 
             toplam_para = (adet_200 * 200) + (adet_100 * 100) + (adet_50 * 50) + (adet_20 * 20) + (adet_10 * 10) + (adet_5 * 5)
             
+            # Para Sayma Toplamından Manüel Kasa Değerinin Çıkarılması (Fazla/Açık Çalışma Modülü)
+            fark_hesaplama = toplam_para - temp_hesap_toplam
+            if fark_hesaplama > 0:
+                fark_durum_metni = f"🟢 FAZLA: {fark_hesaplama:,.2f} ₺"
+                fark_renk = "#D8F3DC"
+            elif fark_hesaplama < 0:
+                fark_durum_metni = f"🔴 AÇIK: {abs(fark_hesaplama):,.2f} ₺"
+                fark_renk = "#FFE5D9"
+            else:
+                fark_durum_metni = "✅ KASA TAM (0.00 ₺)"
+                fark_renk = "#FFFFFF"
+
             st.markdown(f"<div style='background: rgba(0,180,216,0.2); padding: 10px; border-radius: 8px; text-align: center; margin-top: 10px;'><span style='font-size: 16px; font-weight: bold; color: #90E0EF;'>Para Sayma Toplamı: {toplam_para:,.2f} ₺</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; text-align: center; margin-top: 8px;'><span style='font-size: 15px; font-weight: bold; color: {fark_renk};'>Fazla/Açık Durumu (Sayım - Toplam Hesap): {fark_durum_metni}</span></div>", unsafe_allow_html=True)
             
             if st.button("📥 Bu Tutarı Manüel Kasaya Aktar"):
                 st.session_state.kasa_miktari = float(toplam_para)
