@@ -397,7 +397,7 @@ def process_personnel_account_data(df):
     return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
 
 # ==========================================
-# F4 ÖDEME LİSTESİ İŞLEME MOTORU
+# F4 ÖDEME LİSTESİ İŞLEME MOTORU (EKSİKSİZ ESKİ HALİ)
 # ==========================================
 def process_f4_payment_data(df):
     df.columns = df.columns.astype(str).str.strip()
@@ -696,7 +696,7 @@ if st.session_state.active_tab == "HESAP":
         st.info("💡 Lütfen sol taraftan **Personel Hesap Alımı Ekranı** dosyanızı yükleyin.")
 
 # ==========================================
-# TAB 2: F4 ÖDEME LİSTESİ (DOĞRUDAN PDF ÇIKTISI)
+# TAB 2: F4 ÖDEME LİSTESİ (ESKİ TAM FONKSİYONEL HALİ)
 # ==========================================
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.title("📋 F4 Ödeme ve Personel Tahsilat Listesi")
@@ -720,3 +720,29 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
         )
         
         st.session_state.f4_df = pd.DataFrame(edited_f4_df)
+        
+        st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
+        st.subheader("👥 Personele Göre F4 Tahsilat Dağılımı")
+
+        current_f4 = st.session_state.f4_df
+        personel_ozet = current_f4.groupby("Personel")["Fatura Borcu"].sum().reset_index()
+        personel_ozet.columns = ["Personel Adı", "Toplam Tahsilat / Borç"]
+
+        for _, row in personel_ozet.iterrows():
+            p_ad = row["Personel Adı"]
+            p_tutar = row["Toplam Tahsilat / Borç"]
+
+            foto_url = get_github_avatar(p_ad)
+            fallback_url = f"https://api.dicebear.com/7.x/avataaars/svg?seed={p_ad.replace(' ', '')}"
+
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #1E3E62 0%, #0B192C 100%); border: 1px solid #00B4D8; border-radius: 10px; padding: 10px 15px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <img src="{foto_url}" width="35" height="35" style="border-radius: 50%; object-fit: cover; border: 2px solid #FFA200; background: #fff;" onerror="this.onerror=null; this.src='{fallback_url}';" />
+                    <span style="font-weight: bold; color: #FFFFFF; font-size: 15px;">{p_ad}</span>
+                </div>
+                <span style="font-weight: bold; color: #FFB703; font-size: 15px;">{p_tutar:,.2f} ₺</span>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("💡 Lütfen sol taraftan **F4 / Müşteri Borç Listesi** dosyanızı yükleyin.")
