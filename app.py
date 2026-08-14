@@ -405,11 +405,10 @@ def process_f4_payment_data(df):
 
     processed_rows = []
     for _, row in df.iterrows():
-        m_adi_1 = str(row[musteri_col]).strip() if musteri_col and not pd.isna(row[musteri_col]) else ""
-        m_adi_2 = str(row[aciklama_col]).strip() if aciklama_col and not pd.isna(row[aciklama_col]) else ""
-        
-        m_adi = m_adi_1 if m_adi_1 and m_adi_1.upper() not in ["NAN", "NONE", "TOPLAM", "TOTAL"] else m_adi_2
-        
+        m_adi = str(row[aciklama_col]).strip() if aciklama_col and not pd.isna(row[aciklama_col]) else ""
+        if not m_adi or m_adi.upper() in ["NAN", "NONE", "TOPLAM", "TOTAL"]:
+            m_adi = str(row[musteri_col]).strip() if musteri_col else ""
+            
         if not m_adi or m_adi.upper() in ["NAN", "NONE", "TOPLAM", "TOTAL"]:
             continue
             
@@ -442,7 +441,7 @@ def process_f4_payment_data(df):
         processed_rows.append({
             "Müşteri Adı": m_adi,
             "Fatura Borcu": borc_val,
-            "Açıklama": m_adi_2 if m_adi_1 != m_adi_2 else "",
+            "Açıklama": "",
             "Personel": assigned_personel
         })
 
@@ -459,17 +458,16 @@ with st.sidebar:
     st.markdown("""
     <div class="notranslate" style="text-align: center; padding-bottom: 10px;">
         <h2 style="margin: 0; color: #FFFFFF;">Yurtiçi Kargo</h2>
-        <h4 style="margin: 0; color: #00B4D8;">Görükle Acente KOYS</h4>
+        <h4 style="margin: 0; color: #F57C00;">Görükle Acente KOYS</h4>
     </div>
     """, unsafe_allow_html=True)
     
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     
     st.markdown(f"""
-    <div class="notranslate" style="background: linear-gradient(135deg, #FF7B00 0%, #FF5400 100%); border-radius: 12px; padding: 12px; margin-bottom: 15px; border: 1px solid #FFA200; box-shadow: 0 6px 0 #9E2A2B, 0 8px 12px rgba(0,0,0,0.3);">
-        <small style="color: #FFFFFF; font-weight: 600;">Geliştirici:</small><br>
-        <strong style="color: #FFFFFF; font-size: 15px;">{KULLANICI_ISIM}</strong><br>
-        <span style="color: #FFFFFF; font-size: 13px; font-weight: bold;">{KULLANICI_GOREV}</span>
+    <div class="notranslate" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+        <small style="color: #F57C00;">Aktif Kullanıcı:</small><br>
+        <strong>{KULLANICI_ISIM}</strong> ({KULLANICI_GOREV})
     </div>
     """, unsafe_allow_html=True)
 
@@ -477,6 +475,10 @@ with st.sidebar:
     
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     
+    if st.button("📊 Ana Panel"):
+        st.session_state.active_tab = "Ana Panel"
+    if st.button("🏃‍♂️ Kurye Performans"):
+        st.session_state.active_tab = "Kurye Performans"
     if st.button("💰 HESAP"):
         st.session_state.active_tab = "HESAP"
     if st.button("📋 F4 ÖDEME LİSTESİ"):
@@ -491,7 +493,11 @@ if uploaded_file is not None:
         st.session_state.raw_df = raw_df
         
         cols_str = " ".join([str(c).upper() for c in raw_df.columns])
-        if "NAKIT" in cols_str or "FT" in cols_str or "ODEME" in cols_str or "BANKA" in cols_str or "PERSONEL" in cols_str:
+        if "AT ZIMMET" in cols_str or "TESLIM EDEN PERSONEL" in cols_str or "KARGO TESLIMAT KANALI" in cols_str:
+            perf_res, _ = process_excel_data(raw_df)
+            st.session_state.perf_df = perf_res
+            
+        elif "NAKIT" in cols_str or "FT" in cols_str or "ODEME" in cols_str or "BANKA" in cols_str or "PERSONEL" in cols_str:
             processed_acc = process_personnel_account_data(raw_df)
             st.session_state.account_df = processed_acc
             st.session_state.hesap_df = processed_acc.copy()
@@ -499,10 +505,67 @@ if uploaded_file is not None:
         if "MÜŞTERİ" in cols_str or "MUSTERI" in cols_str or "BORÇ" in cols_str or "BORC" in cols_str or "FATURA BORCU" in cols_str or "F4" in uploaded_file.name.upper():
             f4_res = process_f4_payment_data(raw_df)
             st.session_state.f4_df = f4_res
-            st.session_state.editable_f4_df = f4_res.copy()
             
     except Exception as e:
         st.error(f"❌ Dosya Okuma/İşleme Hatası: {e}")
+
+# ==========================================
+# TAB 1: ANA PANEL
+# ==========================================
+if st.session_state.active_tab == "Ana Panel":
+    st.title("📊 Görükle Acente - Genel Performans Özeti")
+    
+    perf_df = st.session_state.perf_df
+    if perf_df is not None and not perf_df.empty:
+        total_zimmet = perf_df["Zimmet"].sum()
+        total_teslim = perf_df["Teslim Edilen"].sum()
+        total_devir = perf_df["Teslim Edilemeyen"].sum()
+        avg_rate = round((total_teslim / total_zimmet) * 100, 1) if total_zimmet > 0 else 0
+        
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("📦 Toplam Zimmet", f"{total_zimmet:,}")
+        c2.metric("✅ Teslim Edilen", f"{total_teslim:,}")
+        c3.metric("🚨 Devir / Teslim Edilemeyen", f"{total_devir:,}")
+        c4.metric("🎯 Genel Başarı Oranı", f"%{avg_rate}")
+        
+        st.markdown("---")
+        
+        col_left, col_right = st.columns(2)
+        
+        with col_left:
+            st.subheader("📊 Kurye Başarı Oranları (%)")
+            fig_bar = px.bar(
+                perf_df, 
+                x="Personel", 
+                y="Başarı Oranı", 
+                color="Başarı Oranı",
+                color_continuous_scale="RdYlGn",
+                text="Başarı Oranı"
+            )
+            fig_bar.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="white")
+            st.plotly_chart(fig_bar, use_container_width=True)
+            
+        with col_right:
+            st.subheader("📲 Teslimat Kanalları Dağılımı")
+            channel_totals = {
+                "SMS": perf_df["SMS"].sum(),
+                "İmza": perf_df["İmza"].sum(),
+                "KS-PE": perf_df["KS-PE"].sum()
+            }
+            fig_pie = px.pie(
+                names=list(channel_totals.keys()),
+                values=list(channel_totals.values()),
+                hole=0.5,
+                color_discrete_sequence=['#0D6EFD', '#F57C00', '#2E7D32']
+            )
+            fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="white")
+            st.plotly_chart(fig_pie, use_container_width=True)
+            
+        st.subheader("📋 Genel Performans Tablosu")
+        st.dataframe(perf_df, use_container_width=True)
+        
+    else:
+        st.info("💡 Sol menüden **AT ZİMMET İZLEME** dosyanızı yükleyerek ana paneli görüntüleyebilirsiniz.")
 
 # ==========================================
 # TAB 1: HESAP
