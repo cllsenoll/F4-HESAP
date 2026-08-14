@@ -32,14 +32,6 @@ KULLANICI_ISIM = "CELAL ŞENOL"
 KULLANICI_GOREV = "(Şube Şefi)"
 
 # ==========================================
-# GİTHUB PERSONEL FOTOĞRAF HARİTASI
-# ==========================================
-def get_github_avatar(personel_adi):
-    clean_name = str(personel_adi).strip()
-    encoded_name = urllib.parse.quote(clean_name)
-    return f"https://raw.githubusercontent.com/cllsenoll/F4-HESAP/main/{encoded_name}.png"
-
-# ==========================================
 # MÜŞTERİ - PERSONEL EŞLEŞTİRME SÖZLÜĞÜ
 # ==========================================
 MUSTERI_PERSONEL_MAP = {
@@ -329,7 +321,7 @@ if uploaded_file is not None:
 # ==========================================
 if st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.markdown("### 📋 F4 Ödeme ve Personel Tahsilat Listesi")
-    st.caption("Tablo üzerinden 'Sorumlu Personel' sütununa tıklayarak eksik veya atanmamış firmaların personel isimlerini **manuel olarak** yazabilir veya değiştirebilirsiniz.")
+    st.caption("Aşağıdaki sekmeleri kullanarak hem tüm listeyi düzenleyebilir hem de personele göre filtrelenmiş görünüme geçebilirsiniz.")
     
     f4_df = st.session_state.get('f4_df', None)
     
@@ -339,51 +331,55 @@ if st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
 
         tum_personel_secenekleri = sorted(list(set(PERSONEL_LISTESI + list(st.session_state.editable_f4_df["Personel"].unique()))))
         
-        # 1. BÖLÜM: TÜM LİSTE (Düzenlenebilir Ana Tablo)
-        edited_df = st.data_editor(
-            st.session_state.editable_f4_df,
-            column_config={
-                "Müşteri Adı": st.column_config.TextColumn("Müşteri Adı", disabled=True),
-                "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺", disabled=True),
-                "Açıklama": st.column_config.TextColumn("Açıklama", disabled=True),
-                "Personel": st.column_config.SelectboxColumn(
-                    "Sorumlu Personel (Düzenlenebilir)",
-                    options=tum_personel_secenekleri,
-                    required=True
-                )
-            },
-            use_container_width=True,
-            hide_index=True,
-            key="f4_main_data_editor"
-        )
-        st.session_state.editable_f4_df = edited_df
-
-        st.markdown("<hr style='border: 2px solid #F57C00; margin: 40px 0;'>", unsafe_allow_html=True)
-
-        # 2. BÖLÜM: PERSONELE GÖRE SÜZGEÇ VE ALT GÖRÜNÜM
-        st.markdown("🔍 **Sorumlu Personele Göre Süzgeçle:**")
-        secilen_personel_filtre = st.selectbox(
-            "Personel Seçin",
-            options=tum_personel_secenekleri,
-            label_visibility="collapsed"
-        )
-
-        filtered_display_df = st.session_state.editable_f4_df[st.session_state.editable_f4_df["Personel"] == secilen_personel_filtre]
-        toplam_kayit = len(filtered_display_df)
-
-        st.markdown(f"### 📌 Seçilen Görünüm: {secilen_personel_filtre} (Toplam {toplam_kayit} Kayıt)")
-
-        st.dataframe(
-            filtered_display_df,
-            column_config={
-                "Müşteri Adı": st.column_config.TextColumn("Müşteri Adı", disabled=True),
-                "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺", disabled=True),
-                "Açıklama": st.column_config.TextColumn("Açıklama", disabled=True),
-                "Personel": st.column_config.TextColumn("Personel", disabled=True)
-            },
-            use_container_width=True,
-            hide_index=True
-        )
+        # SEKME YAPISI İLE KARIŞIKLIĞI ÖNLEME
+        tab_tum, tab_filtre = st.tabs(["📝 Tüm Listeyi Düzenle", "🔍 Personele Göre Süzgeçli Görünüm"])
         
+        with tab_tum:
+            st.markdown("#### Tüm Müşteri ve Personel Atama Tablosu")
+            edited_df = st.data_editor(
+                st.session_state.editable_f4_df,
+                column_config={
+                    "Müşteri Adı": st.column_config.TextColumn("Müşteri Adı", disabled=True),
+                    "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺", disabled=True),
+                    "Açıklama": st.column_config.TextColumn("Açıklama", disabled=True),
+                    "Personel": st.column_config.SelectboxColumn(
+                        "Sorumlu Personel (Düzenlenebilir)",
+                        options=tum_personel_secenekleri,
+                        required=True
+                    )
+                },
+                use_container_width=True,
+                hide_index=True,
+                key="f4_main_data_editor"
+            )
+            st.session_state.editable_f4_df = edited_df
+
+        with tab_filtre:
+            st.markdown("#### Personel Bazlı Tahsilat Süzgeci")
+            secilen_personel_filtre = st.selectbox(
+                "İncelemek İstediğiniz Personeli Seçin:",
+                options=tum_personel_secenekleri,
+                key="personel_selectbox_filter"
+            )
+
+            filtered_display_df = st.session_state.editable_f4_df[st.session_state.editable_f4_df["Personel"] == secilen_personel_filtre]
+            toplam_kayit = len(filtered_display_df)
+            toplam_borc = filtered_display_df["Fatura Borcu"].sum()
+
+            col1, col2 = st.columns(2)
+            col1.metric("Toplam Kayıt Sayısı", toplam_kayit)
+            col2.metric("Toplam Fatura Borcu", f"{toplam_borc:,.2f} ₺")
+
+            st.dataframe(
+                filtered_display_df,
+                column_config={
+                    "Müşteri Adı": st.column_config.TextColumn("Müşteri Adı", disabled=True),
+                    "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺", disabled=True),
+                    "Açıklama": st.column_config.TextColumn("Açıklama", disabled=True),
+                    "Personel": st.column_config.TextColumn("Personel", disabled=True)
+                },
+                use_container_width=True,
+                hide_index=True
+            )
     else:
         st.info("ℹ️ Lütfen sol panelden F4 ödeme / müşteri borç listesini yükleyin.")
