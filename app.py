@@ -26,6 +26,8 @@ if 'raw_df' not in st.session_state:
     st.session_state.raw_df = None
 if 'f4_df' not in st.session_state:
     st.session_state.f4_df = None
+if 'editable_f4_df' not in st.session_state:
+    st.session_state.editable_f4_df = None
 
 KULLANICI_ISIM = "CELAL ŞENOL"
 KULLANICI_GOREV = "(Şube Şefi)"
@@ -497,6 +499,7 @@ if uploaded_file is not None:
         if "MÜŞTERİ" in cols_str or "MUSTERI" in cols_str or "BORÇ" in cols_str or "BORC" in cols_str or "FATURA BORCU" in cols_str or "F4" in uploaded_file.name.upper():
             f4_res = process_f4_payment_data(raw_df)
             st.session_state.f4_df = f4_res
+            st.session_state.editable_f4_df = f4_res.copy()
             
     except Exception as e:
         st.error(f"❌ Dosya Okuma/İşleme Hatası: {e}")
@@ -595,7 +598,7 @@ if st.session_state.active_tab == "HESAP":
         st.info("ℹ️ Lütfen sol panelden personel hesap raporunu yükleyin.")
 
 # ==========================================
-# TAB 2: F4 ÖDEME LİSTESİ (GÖRSELDEKİ DÜZEN)
+# TAB 2: F4 ÖDEME LİSTESİ
 # ==========================================
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.markdown("### 📋 F4 Ödeme ve Kişisel Tahsilat Listesi")
@@ -604,11 +607,9 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     f4_df = st.session_state.get('f4_df', None)
     
     if f4_df is not None and not f4_df.empty:
-        # Oturumda dinamik güncellemeleri tutmak için df kontrolü
-        if 'editable_f4_df' not in st.session_state or len(st.session_state.editable_f4_df) != len(f4_df):
+        if st.session_state.editable_f4_df is None:
             st.session_state.editable_f4_df = f4_df.copy()
 
-        # 1. BÖLÜM: Tüm Liste ve Düzenlenebilir Personel Atama Tablosu
         tum_personel_secenekleri = sorted(list(set(PERSONEL_LISTESI + list(st.session_state.editable_f4_df["Personel"].unique()))))
         
         edited_df = st.data_editor(
@@ -628,12 +629,10 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             key="f4_editor"
         )
         
-        # Güncellenen veriyi kaydet
         st.session_state.editable_f4_df = edited_df
 
         st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1); margin: 30px 0;'>", unsafe_allow_html=True)
 
-        # 2. BÖLÜM: Sorumlu Personele Göre Süzgekleme ve Yazdırma Paneli
         st.markdown("🔍 **Sorumlu Personele Göre Süzgekleme:**")
         
         filtre_secenekleri = ["Tümü"] + sorted(list(edited_df["Personel"].unique()))
@@ -652,7 +651,6 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             st.markdown(f"Toplam Borç: **{filtrelenmis_df['Fatura Borcu'].sum():,.2f} ₺**")
             st.dataframe(filtrelenmis_df[["Müşteri Adı", "Fatura Borcu", "Açıklama", "Personel"]], use_container_width=True, hide_index=True)
             
-            # PDF / Yazdır Butonu ve Şablonu
             html_icerik = f"""
             <html>
             <head>
@@ -688,7 +686,7 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
                         <tr>
                             <td>{row_idx}</td>
                             <td>{row.Müşteri_Adı}</td>
-                            <td>{row.Fatura_Borcu:,.2f} ₺</td>
+                            <td style="text-align: right;">{row.Fatura_Borcu:,.2f} ₺</td>
                             <td>{row.Açıklama}</td>
                             <td>{row.Personel}</td>
                         </tr>
