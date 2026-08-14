@@ -163,7 +163,6 @@ custom_css = """
         background-color: #1E3E62 !important;
         border-right: 1px solid rgba(255, 255, 255, 0.08);
     }
-    
     [data-testid="stSidebar"] div.stButton > button, div.stButton > button {
         width: 100% !important;
         height: 48px !important;
@@ -173,16 +172,9 @@ custom_css = """
         color: #FFFFFF !important;
         border: 1px solid #90E0EF !important;
         box-shadow: 0 6px 0 #03045E, 0 8px 10px rgba(0, 0, 0, 0.4) !important;
-        transform: translateY(0);
-        transition: all 0.1s ease;
         margin-bottom: 10px !important;
         text-align: left !important;
         padding-left: 15px !important;
-    }
-    [data-testid="stSidebar"] div.stButton > button:hover, div.stButton > button:hover {
-        background: linear-gradient(135deg, #48CAE4 0%, #00B4D8 100%) !important;
-        box-shadow: 0 4px 0 #03045E, 0 6px 8px rgba(0, 0, 0, 0.4) !important;
-        transform: translateY(2px);
     }
 </style>
 """
@@ -320,7 +312,6 @@ with st.sidebar:
     if st.button("📋 F4 ÖDEME LİSTESİ"):
         st.session_state.active_tab = "F4 ÖDEME LİSTESİ"
 
-# Dosya Okuma Tetikleyicisi
 if uploaded_file is not None:
     try:
         raw_df = smart_read_file(uploaded_file)
@@ -337,8 +328,8 @@ if uploaded_file is not None:
 # ANA EKRAN: F4 ÖDEME LİSTESİ
 # ==========================================
 if st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
-    st.markdown("### 📋 F4 Ödeme ve Kişisel Tahsilat Listesi")
-    st.caption("Tablo üzerinden 'Sorumlu Personel' sütununa tıklayarak eksik veya atanmamış kişisel isimlerini manuel olarak yazabilir veya değiştirebilirsiniz.")
+    st.markdown("### 📋 F4 Ödeme ve Personel Tahsilat Listesi")
+    st.caption("Tablo üzerinden 'Sorumlu Personel' sütununa tıklayarak eksik veya atanmamış firmaların personel isimlerini **manuel olarak** yazabilir veya değiştirebilirsiniz.")
     
     f4_df = st.session_state.get('f4_df', None)
     
@@ -367,10 +358,10 @@ if st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
         )
         st.session_state.editable_f4_df = edited_df
 
-        st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.2); margin: 30px 0;'>", unsafe_allow_html=True)
+        st.markdown("<hr style='border: 2px solid #F57C00; margin: 40px 0;'>", unsafe_allow_html=True)
 
         # 2. BÖLÜM: PERSONELE GÖRE SÜZGEÇ VE ALT GÖRÜNÜM
-        st.markdown("🔍 Sorumlu Personele Göre Süzgeçle:")
+        st.markdown("🔍 **Sorumlu Personele Göre Süzgeçle:**")
         secilen_personel_filtre = st.selectbox(
             "Personel Seçin",
             options=tum_personel_secenekleri,
