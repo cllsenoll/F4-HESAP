@@ -1,31 +1,30 @@
-import streamlit as st
-import pandas as pd
 import io
 import re
-import urllib.parse
+import pandas as pd
+import streamlit as st
 
 # 1. SAYFA YAPILANDIRMASI
 st.set_page_config(
     page_title="Görükle Acente - Hesap & F4 Paneli",
     page_icon="💰",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
 # 2. OTURUM DURUMU (Session State)
-if 'active_tab' not in st.session_state:
-    st.session_state.active_tab = "HESAP"
-if 'account_df' not in st.session_state:
+if "active_tab" not in st.session_state:
+    st.session_state.active_tab = "F4 ÖDEME LİSTESİ"
+if "account_df" not in st.session_state:
     st.session_state.account_df = None
-if 'hesap_df' not in st.session_state:
+if "hesap_df" not in st.session_state:
     st.session_state.hesap_df = None
-if 'kasa_miktari' not in st.session_state:
+if "kasa_miktari" not in st.session_state:
     st.session_state.kasa_miktari = 0.0
-if 'raw_df' not in st.session_state:
+if "raw_df" not in st.session_state:
     st.session_state.raw_df = None
-if 'f4_df' not in st.session_state:
+if "f4_df" not in st.session_state:
     st.session_state.f4_df = None
-if 'editable_f4_df' not in st.session_state:
+if "editable_f4_df" not in st.session_state:
     st.session_state.editable_f4_df = None
 
 KULLANICI_ISIM = "CELAL ŞENOL"
@@ -126,13 +125,20 @@ MUSTERI_PERSONEL_MAP = {
     "ERKAN DEMİRCAN": "SUAT ARI",
     "NUR ALUÇLUOĞLU - NUR TERZİ": "SUAT ARI",
     "YERLİYURT MARİN DENİZ ARAÇ KAB.TUR.SVE P.LTD.ŞTİ.": "SUAT ARI",
-    "ÖZBAYRAK KIZAK KORUMA SİSTEMLERİ ENDÜSTRİ MAKİNE SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SUAT ARI"
+    "ÖZBAYRAK KIZAK KORUMA SİSTEMLERİ ENDÜSTRİ MAKİNE SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SUAT ARI",
 }
 
 PERSONEL_LISTESI = [
-    "HATİCE KÜBRA IŞIK", "ALATTİN CEBECİ", "BURCU DÜREN",
-    "AHMET BERKAN ÖKSÜZ", "HASAN SAĞLAM", "MEHMET KAYMAZ",
-    "SUAT ARI", "SERGEN GÖRÜROĞLU", "CELAL ŞENOL", "ATANMAMIŞ"
+    "HATİCE KÜBRA IŞIK",
+    "ALATTİN CEBECİ",
+    "BURCU DÜREN",
+    "AHMET BERKAN ÖKSÜZ",
+    "HASAN SAĞLAM",
+    "MEHMET KAYMAZ",
+    "SUAT ARI",
+    "SERGEN GÖRÜROĞLU",
+    "CELAL ŞENOL",
+    "ATANMAMIŞ",
 ]
 
 # ==========================================
@@ -172,6 +178,7 @@ custom_css = """
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
+
 # ==========================================
 # YARDIMCI PARSE FONKSİYONLARI
 # ==========================================
@@ -179,11 +186,20 @@ def clean_string(text):
     if pd.isna(text) or not text:
         return ""
     text = str(text).upper().strip()
-    replacements = {'İ': 'I', 'I': 'I', 'Ş': 'S', 'Ğ': 'G', 'Ü': 'U', 'Ö': 'O', 'Ç': 'C'}
+    replacements = {
+        "İ": "I",
+        "I": "I",
+        "Ş": "S",
+        "Ğ": "G",
+        "Ü": "U",
+        "Ö": "O",
+        "Ç": "C",
+    }
     for search, replace in replacements.items():
         text = text.replace(search, replace)
-    text = re.sub(r'[^A-Z0-9]', '', text)
+    text = re.sub(r"[^A-Z0-9]", "", text)
     return text
+
 
 def parse_turkish_float(val):
     if pd.isna(val) or val is None:
@@ -191,64 +207,96 @@ def parse_turkish_float(val):
     if isinstance(val, (int, float)):
         return float(val)
     s = str(val).strip()
-    if not s or s.upper() in ['NAN', 'NONE', '-', '0', '0.0', '0,0']:
+    if not s or s.upper() in ["NAN", "NONE", "-", "0", "0.0", "0,0"]:
         return 0.0
-    s = s.replace(' ', '').replace('₺', '').replace('TL', '')
-    if ',' in s and '.' in s:
-        s = s.replace('.', '').replace(',', '.')
-    elif ',' in s:
-        s = s.replace(',', '.')
+    s = s.replace(" ", "").replace("₺", "").replace("TL", "")
+    if "," in s and "." in s:
+        s = s.replace(".", "").replace(",", ".")
+    elif "," in s:
+        s = s.replace(",", ".")
     try:
         return float(s)
     except:
         return 0.0
 
+
 def smart_read_file(uploaded_file):
     file_bytes = uploaded_file.getvalue()
-    for enc in ['cp1254', 'iso-8859-9', 'utf-8-sig', 'utf-8', 'latin1']:
-        for sep in [';', ',', '\t', None]:
+    for enc in ["cp1254", "iso-8859-9", "utf-8-sig", "utf-8", "latin1"]:
+        for sep in [";", ",", "\t", None]:
             try:
-                engine_type = 'python' if sep is None else None
-                df = pd.read_csv(io.BytesIO(file_bytes), sep=sep, encoding=enc, engine=engine_type, on_bad_lines='skip')
+                engine_type = "python" if sep is None else None
+                df = pd.read_csv(
+                    io.BytesIO(file_bytes),
+                    sep=sep,
+                    encoding=enc,
+                    engine=engine_type,
+                    on_bad_lines="skip",
+                )
                 if df is not None and len(df.columns) > 1 and len(df) > 0:
                     return df
             except Exception:
                 continue
     try:
-        return pd.read_excel(io.BytesIO(file_bytes), engine='openpyxl')
+        return pd.read_excel(io.BytesIO(file_bytes), engine="openpyxl")
     except Exception:
         pass
     try:
-        return pd.read_excel(io.BytesIO(file_bytes), engine='xlrd')
+        return pd.read_excel(io.BytesIO(file_bytes), engine="xlrd")
     except Exception:
         pass
     raise Exception("Dosya yapısı çözümlenemedi.")
+
 
 def process_f4_payment_data(df):
     df.columns = df.columns.astype(str).str.strip()
     musteri_col, borc_col, aciklama_col = None, None, None
     for col in df.columns:
         c_upper = str(col).upper()
-        if ("MÜŞTERİ" in c_upper or "MUSTERI" in c_upper or "FIRMA" in c_upper or "UNVAN" in c_upper) and not musteri_col:
+        if (
+            (
+                "MÜŞTERİ" in c_upper
+                or "MUSTERI" in c_upper
+                or "FIRMA" in c_upper
+                or "UNVAN" in c_upper
+            )
+            and not musteri_col
+        ):
             musteri_col = col
-        elif ("BORÇ" in c_upper or "BORC" in c_upper or "BAKİYE" in c_upper or "BAKIYE" in c_upper or "TUTAR" in c_upper) and not borc_col:
+        elif (
+            (
+                "BORÇ" in c_upper
+                or "BORC" in c_upper
+                or "BAKİYE" in c_upper
+                or "BAKIYE" in c_upper
+                or "TUTAR" in c_upper
+            )
+            and not borc_col
+        ):
             borc_col = col
         elif "AÇIKLAMA" in c_upper or "ACIKLAMA" in c_upper:
             aciklama_col = col
 
     cols_list = list(df.columns)
-    if not musteri_col and len(cols_list) > 0: musteri_col = cols_list[0]
-    if not borc_col and len(cols_list) > 1: borc_col = cols_list[1]
-    if not aciklama_col and len(cols_list) > 2: aciklama_col = cols_list[2]
+    if not musteri_col and len(cols_list) > 0:
+        musteri_col = cols_list[0]
+    if not borc_col and len(cols_list) > 1:
+        borc_col = cols_list[1]
+    if not aciklama_col and len(cols_list) > 2:
+        aciklama_col = cols_list[2]
 
     processed_rows = []
     for _, row in df.iterrows():
-        m_adi = str(row[aciklama_col]).strip() if aciklama_col and not pd.isna(row[aciklama_col]) else ""
+        m_adi = (
+            str(row[aciklama_col]).strip()
+            if aciklama_col and not pd.isna(row[aciklama_col])
+            else ""
+        )
         if not m_adi or m_adi.upper() in ["NAN", "NONE", "TOPLAM", "TOTAL"]:
             m_adi = str(row[musteri_col]).strip() if musteri_col else ""
         if not m_adi or m_adi.upper() in ["NAN", "NONE", "TOPLAM", "TOTAL"]:
             continue
-            
+
         borc_val = parse_turkish_float(row[borc_col]) if borc_col else 0.0
         if borc_val == 0.0:
             continue
@@ -277,7 +325,7 @@ def process_f4_payment_data(df):
             "Müşteri Adı": m_adi,
             "Fatura Borcu": borc_val,
             "Açıklama": "",
-            "Personel": assigned_personel
+            "Personel": assigned_personel,
         })
 
     res_df = pd.DataFrame(processed_rows)
@@ -286,21 +334,33 @@ def process_f4_payment_data(df):
         res_df.index = range(1, len(res_df) + 1)
     return res_df
 
+
 # ==========================================
 # SIDEBAR MENÜ
 # ==========================================
 with st.sidebar:
-    st.markdown("""
+    st.markdown(
+        """
     <div class="notranslate" style="text-align: center; padding-bottom: 10px;">
         <h2 style="margin: 0; color: #FFFFFF;">Yurtiçi Kargo</h2>
         <h4 style="margin: 0; color: #F57C00;">Görükle Acente KOYS</h4>
     </div>
-    """, unsafe_allow_html=True)
-    st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
-    
-    uploaded_file = st.file_uploader("📂 Rapor / Liste Yükle", type=['csv', 'xlsx', 'xls', 'html'])
-    st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
-    
+    """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "<hr style='border: 1px solid rgba(255,255,255,0.1);'>",
+        unsafe_allow_html=True,
+    )
+
+    uploaded_file = st.file_uploader(
+        "📂 Rapor / Liste Yükle", type=["csv", "xlsx", "xls", "html"]
+    )
+    st.markdown(
+        "<hr style='border: 1px solid rgba(255,255,255,0.1);'>",
+        unsafe_allow_html=True,
+    )
+
     if st.button("📋 F4 ÖDEME LİSTESİ"):
         st.session_state.active_tab = "F4 ÖDEME LİSTESİ"
 
@@ -309,7 +369,14 @@ if uploaded_file is not None:
         raw_df = smart_read_file(uploaded_file)
         st.session_state.raw_df = raw_df
         cols_str = " ".join([str(c).upper() for c in raw_df.columns])
-        if "MÜŞTERİ" in cols_str or "MUSTERI" in cols_str or "BORÇ" in cols_str or "BORC" in cols_str or "FATURA BORCU" in cols_str or "F4" in uploaded_file.name.upper():
+        if (
+            "MÜŞTERİ" in cols_str
+            or "MUSTERI" in cols_str
+            or "BORÇ" in cols_str
+            or "BORC" in cols_str
+            or "FATURA BORCU" in cols_str
+            or "F4" in uploaded_file.name.upper()
+        ):
             f4_res = process_f4_payment_data(raw_df)
             st.session_state.f4_df = f4_res
             st.session_state.editable_f4_df = f4_res.copy()
@@ -321,36 +388,56 @@ if uploaded_file is not None:
 # ==========================================
 if st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.markdown("### 📋 F4 Ödeme ve Personel Tahsilat Listesi")
-    st.caption("Aşağıdaki sekmeleri kullanarak hem tüm listeyi düzenleyebilir hem de personele göre filtrelenmiş görünüme geçebilirsiniz.")
-    
-    f4_df = st.session_state.get('f4_df', None)
-    
+    st.caption(
+        "Aşağıdaki sekmeleri kullanarak hem tüm listeyi düzenleyebilir, ataması yapılmamış müşterileri güncelleyebilir hem de personele göre filtrelenmiş görünüme geçebilirsiniz."
+    )
+
+    f4_df = st.session_state.get("f4_df", None)
+
     if f4_df is not None and not f4_df.empty:
         if st.session_state.editable_f4_df is None:
             st.session_state.editable_f4_df = f4_df.copy()
 
-        tum_personel_secenekleri = sorted(list(set(PERSONEL_LISTESI + list(st.session_state.editable_f4_df["Personel"].unique()))))
-        
+        tum_personel_secenekleri = sorted(
+            list(
+                set(
+                    PERSONEL_LISTESI
+                    + list(st.session_state.editable_f4_df["Personel"].unique())
+                )
+            )
+        )
+
         # SEKME YAPISI İLE KARIŞIKLIĞI ÖNLEME
-        tab_tum, tab_filtre = st.tabs(["📝 Tüm Listeyi Düzenle", "🔍 Personele Göre Süzgeçli Görünüm"])
-        
+        tab_tum, tab_filtre = st.tabs([
+            "📝 Tüm Listeyi Düzenle (Atamalar)",
+            "🔍 Personele Göre Süzgeçli Görünüm",
+        ])
+
         with tab_tum:
-            st.markdown("#### Tüm Müşteri ve Personel Atama Tablosu")
+            st.markdown(
+                "#### Tüm Müşteri ve Personel Atama Tablosu (Buradan 'ATANMAMIŞ' kayıtları dilediğiniz personele devredebilirsiniz)"
+            )
             edited_df = st.data_editor(
                 st.session_state.editable_f4_df,
                 column_config={
-                    "Müşteri Adı": st.column_config.TextColumn("Müşteri Adı", disabled=True),
-                    "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺", disabled=True),
-                    "Açıklama": st.column_config.TextColumn("Açıklama", disabled=True),
+                    "Müşteri Adı": st.column_config.TextColumn(
+                        "Müşteri Adı", disabled=True
+                    ),
+                    "Fatura Borcu": st.column_config.NumberColumn(
+                        "Fatura Borcu", format="%.2f ₺", disabled=True
+                    ),
+                    "Açıklama": st.column_config.TextColumn(
+                        "Açıklama", disabled=True
+                    ),
                     "Personel": st.column_config.SelectboxColumn(
                         "Sorumlu Personel (Düzenlenebilir)",
                         options=tum_personel_secenekleri,
-                        required=True
-                    )
+                        required=True,
+                    ),
                 },
                 use_container_width=True,
                 hide_index=True,
-                key="f4_main_data_editor"
+                key="f4_main_data_editor",
             )
             st.session_state.editable_f4_df = edited_df
 
@@ -359,10 +446,13 @@ if st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             secilen_personel_filtre = st.selectbox(
                 "İncelemek İstediğiniz Personeli Seçin:",
                 options=tum_personel_secenekleri,
-                key="personel_selectbox_filter"
+                key="personel_selectbox_filter",
             )
 
-            filtered_display_df = st.session_state.editable_f4_df[st.session_state.editable_f4_df["Personel"] == secilen_personel_filtre]
+            filtered_display_df = st.session_state.editable_f4_df[
+                st.session_state.editable_f4_df["Personel"]
+                == secilen_personel_filtre
+            ]
             toplam_kayit = len(filtered_display_df)
             toplam_borc = filtered_display_df["Fatura Borcu"].sum()
 
@@ -373,13 +463,23 @@ if st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             st.dataframe(
                 filtered_display_df,
                 column_config={
-                    "Müşteri Adı": st.column_config.TextColumn("Müşteri Adı", disabled=True),
-                    "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺", disabled=True),
-                    "Açıklama": st.column_config.TextColumn("Açıklama", disabled=True),
-                    "Personel": st.column_config.TextColumn("Personel", disabled=True)
+                    "Müşteri Adı": st.column_config.TextColumn(
+                        "Müşteri Adı", disabled=True
+                    ),
+                    "Fatura Borcu": st.column_config.NumberColumn(
+                        "Fatura Borcu", format="%.2f ₺", disabled=True
+                    ),
+                    "Açıklama": st.column_config.TextColumn(
+                        "Açıklama", disabled=True
+                    ),
+                    "Personel": st.column_config.TextColumn(
+                        "Personel", disabled=True
+                    ),
                 },
                 use_container_width=True,
-                hide_index=True
+                hide_index=True,
             )
     else:
-        st.info("ℹ️ Lütfen sol panelden F4 ödeme / müşteri borç listesini yükleyin.")
+        st.info(
+            "ℹ️ Lütfen sol panelden F4 ödeme / müşteri borç listesini yükleyin."
+        )
