@@ -389,7 +389,7 @@ if uploaded_file is not None:
 if st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.markdown("### 📋 F4 Ödeme ve Personel Tahsilat Listesi")
     st.caption(
-        "Aşağıdaki sekmeleri kullanarak hem tüm listeyi düzenleyebilir, ataması yapılmamış müşterileri güncelleyebilir hem de personele göre filtrelenmiş görünüme geçebilirsiniz."
+        "Bu ekrandan tüm listeyi düzenleyebilir, ataması yapılmamış müşterileri yönetebilir ve personellere göre süzgeçli görünümleri inceleyebilirsiniz."
     )
 
     f4_df = st.session_state.get("f4_df", None)
@@ -398,6 +398,8 @@ if st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
         if st.session_state.editable_f4_df is None:
             st.session_state.editable_f4_df = f4_df.copy()
 
+        # "ATANMAMIŞ" hariç gerçek personellerin listesi (Atanacak Personel seçimi için)
+        gercek_personeller = sorted([p for p in PERSONEL_LISTESI if p != "ATANMAMIŞ"])
         tum_personel_secenekleri = sorted(
             list(
                 set(
@@ -407,16 +409,73 @@ if st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             )
         )
 
-        # SEKME YAPISI İLE KARIŞIKLIĞI ÖNLEME
-        tab_tum, tab_filtre = st.tabs([
-            "📝 Tüm Listeyi Düzenle (Atamalar)",
+        # SEKME YAPISI (Atanmamış İşlemleri Sekmesi Eklendi)
+        tab_atanmamis, tab_tum, tab_filtre = st.tabs([
+            "⚠️ ATANMAMIŞ Müşteriler & Atama Yap",
+            "📝 Tüm Listeyi Düzenle",
             "🔍 Personele Göre Süzgeçli Görünüm",
         ])
 
-        with tab_tum:
+        with tab_atanmamis:
             st.markdown(
-                "#### Tüm Müşteri ve Personel Atama Tablosu (Buradan 'ATANMAMIŞ' kayıtları dilediğiniz personele devredebilirsiniz)"
+                "#### ⚠️ Henüz Personele Atanmamış Müşteri Listesi"
             )
+            st.caption(
+                "Aşağıdaki tabloda yalnızca 'ATANMAMIŞ' olan müşteriler yer alır. 'Atanacak Personel' sütunundan ismi seçerek ilgili müşteriyi faturası/borcu ile birlikte doğrudan o personele atayabilirsiniz."
+            )
+
+            # Sadece ATANMAMIŞ olan satırların filtrelenmiş kopyası
+            mask_atanmamis = (
+                st.session_state.editable_f4_df["Personel"] == "ATANMAMIŞ"
+            )
+            sub_atanmamis_df = st.session_state.editable_f4_df[
+                mask_atanmamis
+            ].copy()
+
+            if not sub_atanmamis_df.empty:
+                # Sadece atanmamışları düzenlemek üzere bir editör sunuyoruz
+                edited_atanmamis_df = st.data_editor(
+                    sub_atanmamis_df,
+                    column_config={
+                        "Müşteri Adı": st.column_config.TextColumn(
+                            "Müşteri Adı", disabled=True
+                        ),
+                        "Fatura Borcu": st.column_config.NumberColumn(
+                            "Fatura Borcu", format="%.2f ₺", disabled=True
+                        ),
+                        "Açıklama": st.column_config.TextColumn(
+                            "Açıklama", disabled=True
+                        ),
+                        "Personel": st.column_config.SelectboxColumn(
+                            "Atanacak Personel",
+                            options=gercek_personeller,
+                            required=True,
+                        ),
+                    },
+                    use_container_width=True,
+                    hide_index=True,
+                    key="atanmamis_data_editor",
+                )
+
+                # Yapılan değişiklikleri ana dataframe'e aktaralım
+                for idx in edited_atanmamis_df.index:
+                    yeni_personel = edited_atanmamis_df.loc[idx, "Personel"]
+                    st.session_state.editable_f4_df.loc[
+                        idx, "Personel"
+                    ] = yeni_personel
+
+                if st.button("💾 Atamaları Kaydet ve Güncelle"):
+                    st.success(
+                        "✅ Atamalar başarıyla güncellendi! Diğer sekmelerden kontrol edebilirsiniz."
+                    )
+                    st.rerun()
+            else:
+                st.info(
+                    "🎉 Harika! Şu anda 'ATANMAMIŞ' durumunda hiçbir müşteri kalmadı."
+                )
+
+        with tab_tum:
+            st.markdown("#### Tüm Müşteri ve Personel Atama Tablosu")
             edited_df = st.data_editor(
                 st.session_state.editable_f4_df,
                 column_config={
