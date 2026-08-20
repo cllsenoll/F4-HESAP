@@ -2,6 +2,7 @@ import io
 import re
 import pandas as pd
 import streamlit as st
+from fpdf import FPDF  # PDF oluşturmak için
 
 # 1. SAYFA YAPILANDIRMASI
 st.set_page_config(
@@ -336,6 +337,106 @@ def process_f4_payment_data(df):
 
 
 # ==========================================
+# TÜRKÇE KARAKTER DÖNÜŞÜMÜ (PDF İÇİN)
+# ==========================================
+def tr_to_latin(text):
+    if not isinstance(text, str):
+        text = str(text)
+    mapping = {
+        "İ": "I",
+        "ı": "i",
+        "Ş": "S",
+        "ş": "s",
+        "Ğ": "G",
+        "ğ": "g",
+        "Ü": "U",
+        "ü": "u",
+        "Ö": "O",
+        "ö": "o",
+        "Ç": "C",
+        "ç": "c",
+    }
+    for k, v in mapping.items():
+        text = text.replace(k, v)
+    return text
+
+
+# ==========================================
+# PDF OLUŞTURMA FONKSİYONU
+# ==========================================
+def generate_personel_pdf(personel_adi, df_subset):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    # Başlık
+    pdf.set_font("helvetica", "B", 16)
+    pdf.cell(
+        0,
+        10,
+        tr_to_latin("Yurtici Kargo - Gorukle Acente KOYS"),
+        ln=True,
+        align="C",
+    )
+    pdf.set_font("helvetica", "B", 12)
+    pdf.cell(
+        0,
+        10,
+        tr_to_latin(f"Personel Bazli Tahsilat Raporu: {personel_adi}"),
+        ln=True,
+        align="C",
+    )
+    pdf.ln(5)
+
+    # Özet Bilgiler
+    pdf.set_font("helvetica", "B", 10)
+    toplam_musteri = len(df_subset)
+    toplam_borc = df_subset["Fatura Borcu"].sum()
+    pdf.cell(
+        0,
+        8,
+        tr_to_latin(
+            f"Toplam Musteri Sayisi: {toplam_musteri}   |   Toplam Borc: {toplam_borc:,.2f} TL"
+        ),
+        ln=True,
+    )
+    pdf.ln(5)
+
+    # Tablo Başlıkları
+    pdf.set_font("helvetica", "B", 10)
+    pdf.set_fill_color(30, 62, 98)
+    pdf.set_text_color(255, 255, 255)
+
+    pdf.cell(10, 8, tr_to_latin("No"), 1, 0, "C", True)
+    pdf.cell(130, 8, tr_to_latin("Musteri Adi"), 1, 0, "L", True)
+    pdf.cell(50, 8, tr_to_latin("Fatura Borcu (TL)"), 1, 1, "R", True)
+
+    # Tablo İçeriği
+    pdf.set_font("helvetica", "", 9)
+    pdf.set_text_color(0, 0, 0)
+
+    fill = False
+    for i, (_, row) in enumerate(df_subset.iterrows(), 1):
+        if fill:
+            pdf.set_fill_color(240, 240, 240)
+        else:
+            pdf.set_fill_color(255, 255, 255)
+
+        m_adi = tr_to_latin(str(row["Müşteri Adı"]))
+        if len(m_adi) > 65:
+            m_adi = m_adi[:62] + "..."
+
+        borc_str = f"{row['Fatura Borcu']:,.2f} TL"
+
+        pdf.cell(10, 7, str(i), 1, 0, "C", True)
+        pdf.cell(130, 7, m_adi, 1, 0, "L", True)
+        pdf.cell(50, 7, borc_str, 1, 1, "R", True)
+        fill = not fill
+
+    return bytes(pdf.output())
+
+
+# ==========================================
 # SIDEBAR MENÜ
 # ==========================================
 with st.sidebar:
@@ -398,7 +499,6 @@ if st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
         if st.session_state.editable_f4_df is None:
             st.session_state.editable_f4_df = f4_df.copy()
 
-        # "ATANMAMIŞ" hariç gerçek personellerin listesi (Atanacak Personel seçimi için)
         gercek_personeller = sorted([p for p in PERSONEL_LISTESI if p != "ATANMAMIŞ"])
         tum_personel_secenekleri = sorted(
             list(
@@ -409,7 +509,6 @@ if st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             )
         )
 
-        # SEKME YAPISI (Atanmamış İşlemleri Sekmesi Eklendi)
         tab_atanmamis, tab_tum, tab_filtre = st.tabs([
             "⚠️ ATANMAMIŞ Müşteriler & Atama Yap",
             "📝 Tüm Listeyi Düzenle",
@@ -417,14 +516,11 @@ if st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
         ])
 
         with tab_atanmamis:
-            st.markdown(
-                "#### ⚠️ Henüz Personele Atanmamış Müşteri Listesi"
-            )
+            st.markdown("#### ⚠️ Henüz Personele Atanmamış Müşteri Listesi")
             st.caption(
                 "Aşağıdaki tabloda yalnızca 'ATANMAMIŞ' olan müşteriler yer alır. 'Atanacak Personel' sütunundan ismi seçerek ilgili müşteriyi faturası/borcu ile birlikte doğrudan o personele atayabilirsiniz."
             )
 
-            # Sadece ATANMAMIŞ olan satırların filtrelenmiş kopyası
             mask_atanmamis = (
                 st.session_state.editable_f4_df["Personel"] == "ATANMAMIŞ"
             )
@@ -433,7 +529,6 @@ if st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             ].copy()
 
             if not sub_atanmamis_df.empty:
-                # Sadece atanmamışları düzenlemek üzere bir editör sunuyoruz
                 edited_atanmamis_df = st.data_editor(
                     sub_atanmamis_df,
                     column_config={
@@ -457,7 +552,6 @@ if st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
                     key="atanmamis_data_editor",
                 )
 
-                # Yapılan değişiklikleri ana dataframe'e aktaralım
                 for idx in edited_atanmamis_df.index:
                     yeni_personel = edited_atanmamis_df.loc[idx, "Personel"]
                     st.session_state.editable_f4_df.loc[
@@ -501,7 +595,7 @@ if st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             st.session_state.editable_f4_df = edited_df
 
         with tab_filtre:
-            st.markdown("#### Personel Bazlı Tahsilat Süzgeci")
+            st.markdown("#### Personel Bazlı Tahsilat Süzgeci ve Raporlama")
             secilen_personel_filtre = st.selectbox(
                 "İncelemek İstediğiniz Personeli Seçin:",
                 options=tum_personel_secenekleri,
@@ -518,6 +612,34 @@ if st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             col1, col2 = st.columns(2)
             col1.metric("Toplam Kayıt Sayısı", toplam_kayit)
             col2.metric("Toplam Fatura Borcu", f"{toplam_borc:,.2f} ₺")
+
+            # PDF İndirme Butonu
+            if toplam_kayit > 0:
+                pdf_bytes = generate_personel_pdf(
+                    secilen_personel_filtre, filtered_display_df
+                )
+                safe_filename = (
+                    secilen_personel_filtre.lower()
+                    .replace(" ", "_")
+                    .replace("ç", "c")
+                    .replace("ş", "s")
+                    .replace("ğ", "g")
+                    .replace("ü", "u")
+                    .replace("ö", "o")
+                    .replace("ı", "i")
+                )
+                st.download_button(
+                    label=f"📄 {secilen_personel_filtre} - Listeyi PDF Olarak İndir",
+                    data=pdf_bytes,
+                    file_name=f"f4_tahsilat_listesi_{safe_filename}.pdf",
+                    mime="application/pdf",
+                )
+            else:
+                st.info(
+                    "ℹ️ Bu personele ait gösterilecek müşteri kaydı bulunmadığı için PDF oluşturulmadı."
+                )
+
+            st.markdown("<br>", unsafe_allow_html=True)
 
             st.dataframe(
                 filtered_display_df,
