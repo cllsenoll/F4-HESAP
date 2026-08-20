@@ -433,7 +433,11 @@ def generate_personel_pdf(personel_adi, df_subset):
         pdf.cell(50, 7, borc_str, 1, 1, "R", True)
         fill = not fill
 
-    return bytes(pdf.output())
+    # FPDF çıktısını güvenli bir şekilde bytes formatına dönüştürür
+    pdf_output = pdf.output(dest="S")
+    if isinstance(pdf_output, str):
+        return pdf_output.encode("latin1")
+    return bytes(pdf_output)
 
 
 # ==========================================
