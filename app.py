@@ -75,7 +75,7 @@ MUSTERI_PERSONEL_MAP = {
     "ORCA HOME TEKSTİL İTHALAT İHRACATSANAYİ VE TİCARET LİMİTED ŞİRKETİ": "BURCU DÜREN",
     "OTEKSO MÜHENDİSLİK TASARIM MAKİNE SANAYİ VE TİCARET ANONİM ŞİRKETİ": "BURCU DÜREN",
     "PROLİFT ASANSÖR SANAYİ VE TİCARET ANONİM ŞİRKETİ": "BURCU DÜREN",
-    "S.S.MARMARA ZEYTİN TARIM SAT.KOOP.BİR.MARMARABİRLİK": "BURCU DÜREN",
+    "S.S.MARMARA ZEYTİN TARIM SAT.KOOP.BİR.MARMARABİRK": "BURCU DÜREN",
     "T-BİYOTEKNOLOJİ LABORATUVAR ESTETİK MEDİKAL KOZMETİK SANAYİVE TİCARET LTD.ŞTİ.": "BURCU DÜREN",
     "UĞURLU FİNİSAJ SİSTEMLERİ SANAYİ VE TİCARET ANONİM ŞİRKETİ": "BURCU DÜREN",
     "VARNA DERİ SANAYİ VE TİCARET A.Ş.": "BURCU DÜREN",
@@ -401,7 +401,7 @@ def generate_personel_pdf(personel_adi, df_subset):
         0,
         8,
         tr_to_latin(
-            f"Toplam Musteri Sayisi: {toplam_musteri}   |   Toplam Borc: {toplam_borc:,.2f} TL"
+            f"Toplam Musteri Sayisi: {toplam_musteri}    |    Toplam Borc: {toplam_borc:,.2f} TL"
         ),
         ln=True,
     )
@@ -579,6 +579,17 @@ if st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
 
         with tab_tum:
             st.markdown("#### Tüm Müşteri ve Personel Atama Tablosu")
+            
+            # İstediğiniz 3 kutucuk eklemesi (KOPS KASA, ATM yatırılacak, Devredecek)
+            col_kasa1, col_kasa2, col_kasa3 = st.columns(3)
+            with col_kasa1:
+                kops_kasa = st.number_input("KOPS KASA", value=0.0, format="%.2f", step=100.0)
+            with col_kasa2:
+                atm_yatirilacak = st.number_input("ATM yatırılacak", value=0.0, format="%.2f", step=100.0)
+            with col_kasa3:
+                devredecek = kops_kasa - atm_yatirilacak
+                st.number_input("Devredecek", value=devredecek, format="%.2f", disabled=True)
+
             edited_df = st.data_editor(
                 st.session_state.editable_f4_df,
                 column_config={
